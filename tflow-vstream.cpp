@@ -10,10 +10,9 @@
 
 #include <opencv2/core/ocl.hpp>
 
-#include "tflow-process.h"
+#include "tflow-vstream.h"
 
 using namespace json11;
-using namespace cv;
 
 TFlowBuf::~TFlowBuf()
 {
@@ -54,7 +53,7 @@ TFlowBuf::TFlowBuf(int cam_fd, int index, int planes_num)
 
 TFlowBuf::TFlowBuf()
 {
-    // ???
+    // unmap ??? or unmap on the tflow-capture side only ???
 }
 
 int TFlowBuf::age() {
@@ -69,7 +68,7 @@ int TFlowBuf::age() {
     return (now_ms - proc_frame_ms);
 }
 
-TFlowProcess::TFlowProcess() : 
+TFlowVStream::TFlowVStream() : 
     ctrl(*this)
 {
     context = g_main_context_new();
@@ -89,12 +88,9 @@ TFlowProcess::TFlowProcess() :
 
     last_algo_check = clock();
 
-    // Get OpenCL configuration from config
-    // setOpenCL(false/true);
-
 }
 
-TFlowProcess::~TFlowProcess()
+TFlowVStream::~TFlowVStream()
 {
 
     g_main_loop_unref(main_loop);
@@ -108,21 +104,20 @@ TFlowProcess::~TFlowProcess()
 
 static gboolean tflow_process_idle(gpointer data)
 {
-    TFlowProcess* app = (TFlowProcess*)data;
+    TFlowVStream* app = (TFlowVStream*)data;
 
     app->OnIdle();
 
     return true;
 }
 
-void TFlowProcess::OnIdle()
+void TFlowVStream::OnIdle()
 {
     clock_t now = clock();
     buf_cli->onIdle(now);
-
 }
 
-void TFlowProcess::AttachIdle()
+void TFlowVStream::AttachIdle()
 {
     GSource* src_idle = g_idle_source_new();
     g_source_set_callback(src_idle, (GSourceFunc)tflow_process_idle, this, nullptr);
@@ -132,72 +127,38 @@ void TFlowProcess::AttachIdle()
     return;
 }
 
-void TFlowProcess::setOpenCL(bool ocl_enabled) {
+void TFlowVStream::onFrame(int index, struct timeval ts, uint32_t seq)
+{
+    InFrame &in_frame = in_frames.at(index);
+    
+    // The frame will be blocked until function returns
 
-    if (!cv::ocl::haveOpenCL()) {
-        g_info("OpenCL is not available...");
-        return;
-    }
-
-    cv::ocl::setUseOpenCL(ocl_enabled);
-
-    g_info("TFlowProcess: OpenCL %s in use",
-        cv::ocl::useOpenCL() ? "is" : "isn't" );
-
-#define OPENCL_INFO  0
-
-#if OPENCL_INFO
-    cv::ocl::Context context;
-    if (!context.create(cv::ocl::Device::TYPE_ALL)) {
-        g_warning("Failed creating the context...");
-        return;
-    }
-
-    g_info("TFlowProcess: %d OpenCL devices are detected.",  context.ndevices()); 
-
-    for (int i = 0; i < context.ndevices(); i++) {
-        cv::ocl::Device device = context.device(i);
-        g_info( "\tname: %s \r\n"
-                "\tavailable: %d\r\n" 
-                "\timageSupport: %d\r\n"
-                "\tOpenCL_C_Version: %s\r\n",
-            device.name(),
-            device.available(),
-            device.imageSupport(),
-            device.OpenCL_C_Version());
-    }
-
-    // cv::ocl::Device(context.device(0));
-#endif
 }
 
-void TFlowProcess::onFrame(int index, struct timeval ts, uint32_t seq)
+void TFlowVStream::onCamFD(struct TFlowBuf::pck_cam_fd* cam_info) 
 {
-    auto &in_frame = in_frames.at(index);
-
-    cv::cvtColor(in_frame, in_frame_rgb, COLOR_GRAY2BGR);
-
-    if (fifo_streamer) {
-        fifo_streamer->fifoWrite(in_frame_rgb.datastart, in_frame_rgb.dataend - in_frame_rgb.datastart);
-    }
-}
-
-void TFlowProcess::onCamFD(struct TFlowBuf::pck_cam_fd* cam_info) 
-{
-    uint32_t mat_fmt;
+#define V4L2_PIX_FMT_GREY_META1 0
 
     switch (cam_info->format) {
     case V4L2_PIX_FMT_GREY:
-        mat_fmt = CV_8UC1;
+        break;
+    case V4L2_PIX_FMT_GREY_META1:
         break;
     default:
-        mat_fmt = CV_8UC1;
+        // oops. Unknown format
     }
 
     for (int i = 0; i < cam_info->buffs_num; i++) {
-        in_frames.emplace(in_frames.end(), 
-            Mat(cam_info->height, cam_info->width, mat_fmt, buf_cli->tflow_bufs.at(i).start));
+        in_frames.emplace(in_frames.end(),
+            // Parameters of InFrame constructor
+            cam_info->height, 
+            cam_info->width, 
+            cam_info->format, 
+            buf_cli->tflow_bufs.at(i).start);
     }
- 
+
+#if CODE_BROWSE
+    InFrame x;
+#endif 
 }
 

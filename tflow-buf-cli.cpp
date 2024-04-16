@@ -10,9 +10,8 @@
 #include <giomm.h>
 #include <glib-unix.h>
 
-#include "tflow-process.h"
+#include "tflow-vstream.h"  // is in use?
 #include "tflow-buf-cli.h"
-
 
 TFlowBufCli::~TFlowBufCli()
 {
@@ -269,7 +268,7 @@ int TFlowBufCli::sendPing()
 
 int TFlowBufCli::sendSignature()
 {
-#define TFLOWBUFCLI_SIGNATURE "Process"
+#define TFLOWBUFCLI_SIGNATURE "VStream"
 
     struct TFlowBuf::pck_sign msg_sign {};
 

@@ -3,15 +3,15 @@
 #include <thread>
 #include <signal.h>
 
-#include "tflow-process.h"
+#include "tflow-vstream.h"
 
-TFlowProcess *gp_app;
+TFlowVStream *gp_app;
 
 gboolean handle_signal_pipe(gpointer ctx)
 {
     g_info("Got PIPE signal");
 
-    TFlowProcess* app = (TFlowProcess*)ctx;
+    TFlowVStream* app = (TFlowVStream*)ctx;
 
     return true;
 }
@@ -20,7 +20,7 @@ gboolean handle_signal(gpointer ctx)
 {
     g_info("Got INT or TERM signal, terminating...");
 
-    TFlowProcess *app = (TFlowProcess*)ctx;
+    TFlowVStream *app = (TFlowVStream*)ctx;
     g_main_loop_quit(app->main_loop);
 
     return true;
@@ -48,14 +48,13 @@ int main(int argc, char** argv)
 {
     Gio::init();
 
-    g_info("TFlow Process started");
+    g_info("TFlow Video Streamer started");
 
-    gp_app = new TFlowProcess;
+    gp_app = new TFlowVStream;
 
     setup_sig_handlers();
 
-    // Block SIGPIPE signal
-    signal(SIGPIPE, SIG_IGN);
+    signal(SIGPIPE, SIG_IGN);   // Block SIGPIPE signal
 
     gp_app->AttachIdle();
 
@@ -67,7 +66,7 @@ int main(int argc, char** argv)
 
     delete gp_app;
 
-    g_info("App thread exited");
+    g_info("TFlow Video Streamer thread exited");
 
     return 0;
 }

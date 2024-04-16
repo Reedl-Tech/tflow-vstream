@@ -9,16 +9,16 @@ using std::placeholders::_1;
 
 #define TFLOW_CMD_EOMSG .eomsg = {.name = nullptr, .type = CFT_LAST, .max_len = 0, .v = {.u32 = 0} }
 
-class TFlowCtrlProcess;
-static int _cmd_cb_sign      (TFlowCtrlProcess* obj, Json& json);
-static int _cmd_cb_config    (TFlowCtrlProcess* obj, Json& json);
-static int _cmd_cb_set_as_def(TFlowCtrlProcess* obj, Json& json);
+class TFlowCtrlVStream;
+static int _cmd_cb_sign      (TFlowCtrlVStream* obj, Json& json);
+static int _cmd_cb_config    (TFlowCtrlVStream* obj, Json& json);
+static int _cmd_cb_set_as_def(TFlowCtrlVStream* obj, Json& json);
 
-class TFlowProcess;
-class TFlowCtrlProcess : private TFlowCtrl<TFlowCtrlProcess> {
+class TFlowVStream;
+class TFlowCtrlVStream : private TFlowCtrl<TFlowCtrlVStream> {
 public:
 
-    TFlowCtrlProcess(TFlowProcess& app);
+    TFlowCtrlVStream(TFlowVStream& app);
     void Init();
 
     int algo_param_1_get();
@@ -35,8 +35,8 @@ public:
         tflow_cmd_field_t   algo_param_1;
         tflow_cmd_field_t   eomsg;
     } cmd_flds_config = {
-        .state        = { "state",        CFT_NUM, 0, {.u32 = 0} },
-        .algo_param_1 = { "algo_param_1", CFT_TXT, 0, {.u32 = 0} },
+        .state             = { "state",             CFT_NUM, 0, {.u32 = 0} },
+        .vstreamer_param_1 = { "vstreamer_param_1", CFT_TXT, 0, {.u32 = 0} },
         TFLOW_CMD_EOMSG
     };
 
@@ -65,10 +65,9 @@ public:
     
     //std::function<int (Json& json)> f_add_display2 = std::bind(&TFlowCtrlProcess::cmd_cb_sign, this, _1);
 
-
 private:
 
-    TFlowProcess& app;      // AV: Why?
+    TFlowVStream& app;      // AV: Why?
 
-    const char* cfg_fname = "tflow-process-config.json";
+    const char* cfg_fname = "tflow-vstream-config.json";
 };

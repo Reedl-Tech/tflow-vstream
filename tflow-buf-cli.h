@@ -4,7 +4,6 @@
 #include <time.h>
 #include <linux/videodev2.h> //V4L2 stuff
 
-//#include <giomm.h>
 #include <glib-unix.h>
 
 #include "tflow-buf.h"
@@ -15,14 +14,14 @@ class TFlowBufSrvPort {
     int dummy;
 };
 
-class TFlowProcess;
+class TFlowVStream;
 
 class TFlowBufCli {
 public:
     TFlowBufCli(GMainContext* context);
     ~TFlowBufCli();
     
-    TFlowProcess *app;
+    TFlowVStream *app;
 
     void onIdle(clock_t now);
     int Connect();

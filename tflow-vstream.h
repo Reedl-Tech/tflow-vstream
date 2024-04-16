@@ -4,8 +4,6 @@
 #include <time.h>
 #include <giomm.h>
 
-#include <opencv2/opencv.hpp>
-
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 
 class Flag {
@@ -20,14 +18,30 @@ public:
     enum states v = Flag::UNDEF;
 };
 
-#include "tflow-ctrl-process.h"
+#include "tflow-ctrl-vstream.h"
 #include "tflow-buf-cli.h"
-#include "tflow-streamer.h"
 
-class TFlowProcess {
+class InFrame {
 public:
-    TFlowProcess();
-    ~TFlowProcess();
+
+    InFrame::InFrame(uint32_t width, uint32_t height, uint32_t format, uint8_t* data) {
+        this->width  = width;
+        this->height = height;
+        this->format = format;
+        this->data   = data;  
+    }
+
+    uint32_t width;
+    uint32_t height;
+    uint32_t format;
+    uint8_t *data;
+};
+
+
+class TFlowVStream {
+public:
+    TFlowVStream();
+    ~TFlowVStream();
 
     GMainContext *context;
     GMainLoop *main_loop;
@@ -36,19 +50,14 @@ public:
     void OnIdle();
 
     TFlowBufCli *buf_cli;
-    TFlowStreamer *fifo_streamer;
 
-    void setOpenCL(bool ocl_enabled);
     void onFrame(int index, struct timeval ts, uint32_t seq);
     void onCamFD(struct TFlowBuf::pck_cam_fd* msg);
 private:
 
-    TFlowCtrlProcess ctrl;
+    TFlowCtrlVStream ctrl;
 
-    Flag    algo_state_flag;     // FL_SET -> Algorithm processing enabled; FL_CLR -> disabled
-    clock_t last_algo_check;
-
-    std::vector<cv::Mat> in_frames{};
-    cv::Mat in_frame_rgb;            // Input frame in RGB format. Supposed for debug info rendering.
+    std::vector<InFrame> in_frames{};
+    // cv::Mat in_frame_rgb;            // Input frame in RGB format. Supposed for debug info rendering.
 };
 

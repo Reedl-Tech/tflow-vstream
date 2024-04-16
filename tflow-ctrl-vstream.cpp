@@ -2,25 +2,25 @@
 #include <glib-unix.h>
 
 #include <json11.hpp>
-#include "tflow-ctrl-process.h"
+#include "tflow-ctrl-vstream.h"
 
 using namespace json11;
 
 static const char *raw_cfg_default =  R"( 
-    {"algo_param_1" : "xz"} 
+    {"vstreamer_param_1" : "xz"} 
 )";
 
-static int _cmd_cb_sign      (TFlowCtrlProcess* obj, Json& json) { return obj->cmd_cb_sign(json);       }
-static int _cmd_cb_config    (TFlowCtrlProcess* obj, Json& json) { return obj->cmd_cb_config(json);     }
-static int _cmd_cb_set_as_def(TFlowCtrlProcess* obj, Json& json) { return obj->cmd_cb_set_as_def(json); }
+static int _cmd_cb_sign      (TFlowCtrlVStream* obj, Json& json) { return obj->cmd_cb_sign(json);       }
+static int _cmd_cb_config    (TFlowCtrlVStream* obj, Json& json) { return obj->cmd_cb_config(json);     }
+static int _cmd_cb_set_as_def(TFlowCtrlVStream* obj, Json& json) { return obj->cmd_cb_set_as_def(json); }
 
-TFlowCtrlProcess::TFlowCtrlProcess(TFlowProcess& parent) :
+TFlowCtrlVStream::TFlowCtrlVStream(TFlowVStream& parent) :
     app(parent)
 {
     
 }
 
-void TFlowCtrlProcess::Init()
+void TFlowCtrlVStream::Init()
 {
     struct stat sb;
     int cfg_fd = -1;
@@ -66,12 +66,12 @@ void TFlowCtrlProcess::Init()
     set_cmd_fields((tflow_cmd_field_t*)&cmd_flds_config, json_cfg);
 }
 
-int TFlowCtrlProcess::algo_param_1_get()
+int TFlowCtrlVStream::vstreamer_param_1_get()
 {
-    return (int)cmd_flds_config.algo_param_1.v.u32;
+    return (int)cmd_flds_config.vstreamer_param_1.v.u32;
 }
 
-int TFlowCtrlProcess::state_get()
+int TFlowCtrlVStream::state_get()
 {
     return (int)cmd_flds_config.state.v.u32;
 }
@@ -80,17 +80,17 @@ int TFlowCtrlProcess::state_get()
 /*** Application specific part ***/
 /*********************************/
 
-int TFlowCtrlProcess::cmd_cb_set_as_def(Json& json_cfg)
+int TFlowCtrlVStream::cmd_cb_set_as_def(Json& json_cfg)
 {
     return 0;
 }
 
-int TFlowCtrlProcess::cmd_cb_sign(Json& in_params)
+int TFlowCtrlVStream::cmd_cb_sign(Json& in_params)
 {
     return 0;
 }
 
-int TFlowCtrlProcess::cmd_cb_config(Json &in_params)
+int TFlowCtrlVStream::cmd_cb_config(Json &in_params)
 {
     g_info("Config command\n    params:\t");
 
