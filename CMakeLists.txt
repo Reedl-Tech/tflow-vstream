@@ -32,10 +32,6 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 20)
 endif()
 
-pkg_check_modules(OPENCV REQUIRED IMPORTED_TARGET
-    opencv4
-)
-
 pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET 
     glib-2.0
     gmodule-2.0
@@ -55,13 +51,10 @@ pkg_check_modules(OTHERS REQUIRED IMPORTED_TARGET
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0") # Add debug information
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${OPENCV_INCLUDE_DIRS})
 target_include_directories(${PROJECT_NAME} PRIVATE ${GLIB_INCLUDE_DIRS})
 target_include_directories(${PROJECT_NAME} PRIVATE ${GLIBMM_INCLUDE_DIRS})
 target_include_directories(${PROJECT_NAME} PRIVATE ${OTHERS_INCLUDE_DIRS})
 
-
-target_link_libraries(${PROJECT_NAME} PkgConfig::OPENCV)
 target_link_libraries(${PROJECT_NAME} PkgConfig::GLIB)
 target_link_libraries(${PROJECT_NAME} PkgConfig::GLIBMM)
 target_link_libraries(${PROJECT_NAME} PkgConfig::OTHERS)
