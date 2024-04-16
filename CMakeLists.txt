@@ -46,7 +46,7 @@ pkg_check_modules(GLIBMM REQUIRED IMPORTED_TARGET
 
 pkg_check_modules(OTHERS REQUIRED IMPORTED_TARGET
     json11
-    jpeg
+    libjpeg
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0") # Add debug information
