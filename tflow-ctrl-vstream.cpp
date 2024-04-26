@@ -10,9 +10,9 @@ static const char *raw_cfg_default =  R"(
     {"vstreamer_param_1" : "xz"} 
 )";
 
-static int _cmd_cb_sign      (TFlowCtrlVStream* obj, Json& json) { return obj->cmd_cb_sign(json);       }
-static int _cmd_cb_config    (TFlowCtrlVStream* obj, Json& json) { return obj->cmd_cb_config(json);     }
-static int _cmd_cb_set_as_def(TFlowCtrlVStream* obj, Json& json) { return obj->cmd_cb_set_as_def(json); }
+//static int _cmd_cb_sign      (TFlowCtrlVStream* obj, Json& json) { return obj->cmd_cb_sign(json);       }
+//static int _cmd_cb_config    (TFlowCtrlVStream* obj, Json& json) { return obj->cmd_cb_config(json);     }
+//static int _cmd_cb_set_as_def(TFlowCtrlVStream* obj, Json& json) { return obj->cmd_cb_set_as_def(json); }
 
 TFlowCtrlVStream::TFlowCtrlVStream(TFlowVStream& parent) :
     app(parent)
@@ -68,33 +68,32 @@ void TFlowCtrlVStream::Init()
 
 int TFlowCtrlVStream::vstreamer_param_1_get()
 {
-    return (int)cmd_flds_config.vstreamer_param_1.v.u32;
+    return (int)cmd_flds_config.vstreamer_param_1.v.num;
 }
 
 int TFlowCtrlVStream::state_get()
 {
-    return (int)cmd_flds_config.state.v.u32;
+    return (int)cmd_flds_config.state.v.num;
 }
 
 /*********************************/
 /*** Application specific part ***/
 /*********************************/
-
-int TFlowCtrlVStream::cmd_cb_set_as_def(Json& json_cfg)
+int TFlowCtrlVStream::cmd_cb_version(const json11::Json& j_in_params, Json::object& j_out_params)
 {
     return 0;
 }
 
-int TFlowCtrlVStream::cmd_cb_sign(Json& in_params)
+int TFlowCtrlVStream::cmd_cb_set_as_def(const json11::Json& j_in_params, Json::object& j_out_params)
 {
     return 0;
 }
 
-int TFlowCtrlVStream::cmd_cb_config(Json &in_params)
+int TFlowCtrlVStream::cmd_cb_config(const json11::Json& j_in_params, Json::object& j_out_params)
 {
     g_info("Config command\n    params:\t");
 
-    int rc = set_cmd_fields((tflow_cmd_field_t*)&cmd_flds_config, in_params);
+    int rc = set_cmd_fields((tflow_cmd_field_t*)&cmd_flds_config, j_in_params);
 
     if (rc != 0) return -1;
 

@@ -49,6 +49,7 @@ public:
     TFlowBufSrvPort* buf_srv;
     
     std::vector<TFlowBuf> tflow_bufs;
+
 private:
     GMainContext* context;
     clock_t last_idle_check = 0;
@@ -58,8 +59,8 @@ private:
 
     clock_t last_send_ts;
 
-    int onCamFD(struct TFlowBuf::pck_cam_fd *msg, int cam_fd);
-    int onConsume(struct TFlowBuf::pck_consume* msg);
+    int onCamFD(TFlowBuf::pck_cam_fd *msg, int cam_fd);
+    int onConsume(TFlowBuf::pck_consume* msg);
 
 };
 

@@ -68,6 +68,9 @@ public:
         int buff_index;
         struct timeval ts;
         uint32_t seq;
+        uint32_t aux_data_len;
+        uint8_t aux_data[256];     // Att: Variable length array. Must be last!
+                                   //      Actual data to be sent specified in aux_data_len
     };
 
     struct pck_redeem {

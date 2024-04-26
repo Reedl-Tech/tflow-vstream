@@ -18,14 +18,15 @@ TFlowBufCli::~TFlowBufCli()
     Disconnect();
     
 }
-int TFlowBufCli::onConsume(struct TFlowBuf::pck_consume* msg)
+int TFlowBufCli::onConsume(TFlowBuf::pck_consume* msg)
 {
     // Sanity check for buffer index
     assert(msg->buff_index >= 0 && msg->buff_index < tflow_bufs.size());
 
-    app->onFrame(msg->buff_index, msg->ts, msg->seq);
-
     // new buffer received normally
+
+    app->onFrame(msg->buff_index, msg->ts, msg->seq, msg->aux_data, msg->aux_data_len);
+
     {
         static int presc = 0;
         if ((++presc & 0xFF) == 0) g_warning("Processed %d frames", presc);
@@ -35,7 +36,7 @@ int TFlowBufCli::onConsume(struct TFlowBuf::pck_consume* msg)
     return 0;
 }
 
-int TFlowBufCli::onCamFD(struct TFlowBuf::pck_cam_fd* msg, int cam_fd)
+int TFlowBufCli::onCamFD(TFlowBuf::pck_cam_fd* msg, int cam_fd)
 {
     this->cam_fd = cam_fd;
 
@@ -49,7 +50,7 @@ int TFlowBufCli::onCamFD(struct TFlowBuf::pck_cam_fd* msg, int cam_fd)
 }
 
 #if 0
-int TFlowBufCli::onCamFD(struct TFlowBuf::pck_cam_fd* msg, int cam_fd)
+int TFlowBufCli::onCamFD(TFlowBuf::pck_cam_fd* msg, int cam_fd)
 {
     this->cam_fd = cam_fd;
     v4l2_buffer v4l2_buf {};
@@ -147,7 +148,7 @@ int TFlowBufCli::onMsg()
 
         struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msg);
         int cam_fd = *(int*)CMSG_DATA(cmsg);
-        struct TFlowBuf::pck_cam_fd *pck_cam_fd = (struct TFlowBuf::pck_cam_fd*)&pck;
+        TFlowBuf::pck_cam_fd *pck_cam_fd = (TFlowBuf::pck_cam_fd*)&pck;
 
         onCamFD(pck_cam_fd, cam_fd);
         app->onCamFD(pck_cam_fd);
@@ -156,7 +157,7 @@ int TFlowBufCli::onMsg()
     }
     case TFLOWBUF_MSG_CONSUME:
     {
-        struct TFlowBuf::pck_consume* pck_consume = (struct TFlowBuf::pck_consume*)&pck;
+        TFlowBuf::pck_consume* pck_consume = (TFlowBuf::pck_consume*)&pck;
 
         // g_warning("---TFlowBufCli: Received - Consume %d", pck_consume->buff_index);
         onConsume(pck_consume);
@@ -206,7 +207,7 @@ int TFlowBufCli::sendMsg(TFlowBuf::pck_t *msg, int msg_id)
 {
     ssize_t res;
     size_t msg_len;
-    char* comment = NULL;
+    const char* comment = NULL;
 
     if (sck_state_flag.v != Flag::SET) return 0;
 
@@ -248,7 +249,7 @@ int TFlowBufCli::sendMsg(TFlowBuf::pck_t *msg, int msg_id)
 
 int TFlowBufCli::sendRedeem(int index)
 {
-    struct TFlowBuf::pck_redeem msg_redeem{};
+    TFlowBuf::pck_redeem msg_redeem{};
    
     msg_redeem.buff_index = index;
     msg_redeem.need_more = true;
@@ -260,7 +261,7 @@ int TFlowBufCli::sendRedeem(int index)
 
 int TFlowBufCli::sendPing()
 {
-    struct TFlowBuf::pck_sign msg_ping {};
+    TFlowBuf::pck_sign msg_ping {};
 
     sendMsg((TFlowBuf::pck_t*)&msg_ping, TFLOWBUF_MSG_PING_ID);
     return 0;
@@ -270,7 +271,7 @@ int TFlowBufCli::sendSignature()
 {
 #define TFLOWBUFCLI_SIGNATURE "VStream"
 
-    struct TFlowBuf::pck_sign msg_sign {};
+    TFlowBuf::pck_sign msg_sign {};
 
     memcpy(msg_sign.cli_name, TFLOWBUFCLI_SIGNATURE, strlen(TFLOWBUFCLI_SIGNATURE));
     msg_sign.cli_pid = getpid();
@@ -384,15 +385,8 @@ void TFlowBufCli::onIdle(clock_t now)
         }
         else {
             sck_state_flag.v = Flag::SET;
-            /* Note: In case of Streamer reuse existing fifo for
-             *       different Tflow Capture connection (for ex. Capture was
-             *       closed and reopened), the gstreamer at another fifo end
-             *       generates video with delay >1sec. Therefore, the gstreamer
-             *       need to be restarted. Closing TFlowStreamer will close
-             *       gstreamer if active.
-             */
-            app->fifo_streamer = new TFlowStreamer();
             sendSignature();
+            // TODO: ? Add user configurable call back for connect\disconnect ?
         }
         return;
     }
@@ -402,11 +396,7 @@ void TFlowBufCli::onIdle(clock_t now)
         // Most probably TFlow Buffer Server is closed
         Disconnect();
 
-        // Close gstreamer. See note above
-        if (app->fifo_streamer) {
-            delete app->fifo_streamer;
-            app->fifo_streamer = NULL;
-        }
+        // TODO: ? Add user configurable call back for connect\disconnect ?
 
         // Try to reconnect
         sck_state_flag.v = Flag::RISE;
