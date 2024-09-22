@@ -14,8 +14,11 @@ class TFlowCtrlVStream : private TFlowCtrl {
 public:
 
     TFlowCtrlVStream(TFlowVStream& app);
-    void Init();
-    
+    TFlowVStream& app;      // AV: For access to context. Passed to CtrlServer
+
+    void InitConfig();
+    void InitServer();
+
     int vstreamer_param_1_get();
     int state_get();
 
@@ -68,7 +71,6 @@ public:
 
 private:
 
-    TFlowVStream& app;      // AV: Why?
-
     const char* cfg_fname = "tflow-vstream-config.json";
+    const char* ctrl_srv_name = "_com.reedl.tflow.ctrl-server-vstream";
 };

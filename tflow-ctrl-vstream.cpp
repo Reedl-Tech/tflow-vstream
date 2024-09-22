@@ -17,10 +17,14 @@ static const char *raw_cfg_default =  R"(
 TFlowCtrlVStream::TFlowCtrlVStream(TFlowVStream& parent) :
     app(parent)
 {
-    
+    InitServer();
 }
 
-void TFlowCtrlVStream::Init()
+void TFlowCtrlVStream::InitServer()
+{
+}
+
+void TFlowCtrlVStream::InitConfig()
 {
     struct stat sb;
     int cfg_fd = -1;

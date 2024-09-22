@@ -8,18 +8,7 @@
 
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 
-class Flag {
-public:
-    enum states {
-        UNDEF,
-        CLR,
-        SET,
-        FALL,
-        RISE
-    };
-    enum states v = Flag::UNDEF;
-};
-
+#include "tflow-common.hpp"
 #include "tflow-ctrl-vstream.h"
 #include "tflow-buf-cli.h"
 
@@ -54,6 +43,7 @@ public:
     void onFrame(int index, struct timeval ts, uint32_t seq, uint8_t* aux_data, size_t aux_data_len);
     void onCamFD(TFlowBuf::pck_cam_fd* msg);
 
+#if 0
     /*
      * Data arrived from TFlowCpature -> TFlowBufSrv -> TFlowBufCli
      * will be copied to TFlowBuf on each frame and sent to all TFlowBuf clients
@@ -67,16 +57,25 @@ public:
         int32_t roll;         // In degrees * 100
         int32_t pitch;        // In degrees * 100
         int32_t yaw;          // In degrees * 100
-        int32_t altitude;     // In meters * 100     ?
+        int32_t altitude;     // In meters * 100
         int32_t pos_x;
         int32_t pos_y;
         int32_t pos_z;
+
+        uint32_t flightModeFlags;
+        uint32_t stateFlags;
+        uint32_t hwHealthSatus;
+        uint8_t  failsafePhase;
+        uint8_t  receiver_status;
+
     } aux_imu_data;
 #pragma pack(pop)
-
+#endif
 private:
 
     TFlowCtrlVStream ctrl;
+
+    GSource* src_idle;
 
     std::vector<InFrame> in_frames{};
     

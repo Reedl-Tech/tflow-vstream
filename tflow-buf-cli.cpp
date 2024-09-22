@@ -10,8 +10,11 @@
 #include <giomm.h>
 #include <glib-unix.h>
 
+#include "tflow-perfmon.hpp"
 #include "tflow-vstream.h"  // is in use?
 #include "tflow-buf-cli.h"
+
+static void tflow_buf_cli_on_idle_once(gpointer data);
 
 TFlowBufCli::~TFlowBufCli()
 {
@@ -49,46 +52,6 @@ int TFlowBufCli::onCamFD(TFlowBuf::pck_cam_fd* msg, int cam_fd)
     return 0;
 }
 
-#if 0
-int TFlowBufCli::onCamFD(TFlowBuf::pck_cam_fd* msg, int cam_fd)
-{
-    this->cam_fd = cam_fd;
-    v4l2_buffer v4l2_buf {};
-    v4l2_plane mplanes[msg->planes_num];
-
-    v4l2_buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-    v4l2_buf.memory = V4L2_MEMORY_MMAP;
-    v4l2_buf.m.planes = mplanes;
-    v4l2_buf.length = msg->planes_num;
-
-    tflow_bufs = std::vector<TFlowBuf>(msg->buffs_num, TFlowBuf());
-
-    for (int n = 0; n < msg->buffs_num; n++) {
-
-        auto& tflow_buf = tflow_bufs.at(n);
-        tflow_buf.index = n;
-        v4l2_buf.index = n;
-
-        // Query the information of the buffer with index=n into struct buf
-        if (-1 == ioctl(cam_fd, VIDIOC_QUERYBUF, &v4l2_buf)) {
-            g_warning("Can't VIDIOC_QUERYBUF (%d)", errno);
-            return -1;
-        }
-
-        // Record the length and mmap buffer to user space
-        tflow_buf.length = v4l2_buf.m.planes[0].length;
-        tflow_buf.start = (uint8_t*)mmap(NULL, v4l2_buf.m.planes[0].length,
-            PROT_READ | PROT_WRITE, MAP_SHARED, cam_fd, v4l2_buf.m.planes[0].m.mem_offset);
-
-        if (MAP_FAILED == tflow_buf.start) {
-            g_warning("Can't MMAP (%d)", errno);
-            return -1;
-        }
-    }
-
-    return 0;
-}
-#endif
 int TFlowBufCli::onMsg()
 {
     struct msghdr   msg;
@@ -127,7 +90,7 @@ int TFlowBufCli::onMsg()
         }
 
         sck_state_flag.v = Flag::FALL;
-        last_idle_check = 0; // aka Idle loop kick
+        g_main_context_invoke(context, (GSourceFunc)tflow_buf_cli_on_idle_once, this);
         return -1;
     }
 
@@ -162,6 +125,7 @@ int TFlowBufCli::onMsg()
         // g_warning("---TFlowBufCli: Received - Consume %d", pck_consume->buff_index);
         onConsume(pck_consume);
         sendRedeem(pck_consume->buff_index); // Return current and request another frame from TFlow Buffer Server
+
         break;
     }
     default:
@@ -179,8 +143,23 @@ TFlowBufCli::TFlowBufCli(GMainContext* app_context)
     sck_src = NULL;
     CLEAR(sck_gsfuncs);
 
+    clock_gettime(CLOCK_MONOTONIC, &last_send_ts);
+    last_conn_check_ts.tv_sec = 0;
+    last_conn_check_ts.tv_nsec = 0;
+
     buf_srv = NULL;
+    msg_seq_num = 0;
     cam_fd = -1;
+}
+
+static void tflow_buf_cli_on_idle_once(gpointer data)
+{
+    TFlowBufCli* buf_cli = (TFlowBufCli*)data;
+
+    struct timespec now_ts;
+    clock_gettime(CLOCK_MONOTONIC, &now_ts);
+
+    buf_cli->onIdle(now_ts);
 }
 
 gboolean tflow_buf_cli_dispatch(GSource* g_source, GSourceFunc callback, gpointer user_data)
@@ -239,11 +218,10 @@ int TFlowBufCli::sendMsg(TFlowBuf::pck_t *msg, int msg_id)
                 comment, err, strerror(err));
         }
         sck_state_flag.v = Flag::FALL;
-        last_idle_check = 0; // aka Idle loop kick
         return -1;
     }
 
-    last_send_ts = clock();
+    clock_gettime(CLOCK_MONOTONIC, &last_send_ts);
     return 0;
 }
 
@@ -351,26 +329,19 @@ int TFlowBufCli::Connect()
     return 0;
 }
 
-void TFlowBufCli::onIdle(clock_t now)
+void TFlowBufCli::onIdle(struct timespec now_ts)
 {
-    clock_t dt = now - last_idle_check;
+    if (sck_state_flag.v == Flag::CLR) {
+        if (TFlowPerfMon::diff_timespec_msec(&now_ts, &last_conn_check_ts) > 1000) {
+            last_conn_check_ts = now_ts;
+            sck_state_flag.v = Flag::RISE;
+        }
+        return;
+    }
 
-    /* Do not check to often*/
-    if (dt < 3 * CLOCKS_PER_SEC) return;
-    last_idle_check = now;
-
-    if (sck_state_flag.v == Flag::SET || sck_state_flag.v == Flag::CLR) {
-        // Normal operation. Check buffer are occupied for too long
-        // ...
-        //for (auto &tflow_buf : tflow_bufs) {
-        //    if (tflow_buf.age() > 3000) {
-        //        g_warning("Processing algo stall - force redeem");
-        //        // Disqualify the client, close connection or ???
-        //    }
-        //}
-
-        // Check idle connection
-        if (last_send_ts - now > 1000) {
+    if (sck_state_flag.v == Flag::SET) {
+        // Check idle connection. Capture is active, but camera is not.
+        if (TFlowPerfMon::diff_timespec_msec(&now_ts, &last_send_ts) > 1000) {
             sendPing();
         }
         return;

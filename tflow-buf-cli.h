@@ -23,7 +23,7 @@ public:
     
     TFlowVStream *app;
 
-    void onIdle(clock_t now);
+    void onIdle(struct timespec now_ts);
     int Connect();
     void Disconnect();
     int onMsg();
@@ -52,12 +52,13 @@ public:
 
 private:
     GMainContext* context;
-    clock_t last_idle_check = 0;
+    struct timespec last_idle_check;
 
     int msg_seq_num = 0;
     int cam_fd;
 
-    clock_t last_send_ts;
+    struct timespec last_send_ts;
+    struct timespec last_conn_check_ts;
 
     int onCamFD(TFlowBuf::pck_cam_fd *msg, int cam_fd);
     int onConsume(TFlowBuf::pck_consume* msg);
