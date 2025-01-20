@@ -1,13 +1,14 @@
 // TODO: check camera disconnection scenarion
 
 #include <unistd.h>
+#include <cassert>
+
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <linux/videodev2.h>
 
-#include <giomm.h>
 #include <glib-unix.h>
 
 #include "tflow-perfmon.hpp"
@@ -168,7 +169,7 @@ gboolean tflow_buf_cli_dispatch(GSource* g_source, GSourceFunc callback, gpointe
     TFlowBufCli::GSourceCli* source = (TFlowBufCli::GSourceCli*)g_source;
     TFlowBufCli* cli = source->cli;
 
-    g_info("TFlowBufCli: Incoming message");
+    // g_debug("TFlowBufCli: Incoming message");
 
     rc = cli->onMsg();
 
@@ -308,8 +309,11 @@ int TFlowBufCli::Connect()
     socklen_t sck_len = sizeof(sock_addr.sun_family) + strlen(TFLOWBUFSRV_SOCKET_NAME) + 1;
     rc = connect(sck_fd, (const struct sockaddr*)&sock_addr, sck_len);
     if (rc == -1) {
-        g_warning("TFlowBufCli: Can't connect to the server %s (%d) - %s",
-            TFLOWBUFSRV_SOCKET_NAME, errno, strerror(errno));
+        static int presc = 0;
+        if ((++presc & 0x07) == 0) {
+            g_warning("TFlowBufCli: Can't connect to the server %s (%d) - %s",
+                TFLOWBUFSRV_SOCKET_NAME, errno, strerror(errno));
+        }
 
         close(sck_fd);
         sck_fd = -1;

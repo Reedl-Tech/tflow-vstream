@@ -1,6 +1,6 @@
 #pragma once
 
-#include <time.h>
+#include <ctime>
 #include <string>
 #include <glib-unix.h>
 #include <json11.hpp>

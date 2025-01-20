@@ -3,6 +3,9 @@
 #define UBUNTU 0
 #define YOCTO 1
 
+#define GLIB_MAJOR_VERSION 2
+#define GLIB_MINOR_VERSION 66
+
 #if UBUNTU
 #define __SSP_STRONG__ 3
 #define __DBL_MIN_EXP__ (-1021)

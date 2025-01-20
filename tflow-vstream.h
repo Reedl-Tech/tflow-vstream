@@ -1,14 +1,17 @@
 #pragma once
 
 #include <cassert>
-#include <time.h>
-#include <giomm.h>
+#include <ctime>
+#include <cstdint>
+#include <cstdio>
+
 #include <jpeglib.h>
 #include <jerror.h>
 
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 
 #include "tflow-common.hpp"
+#include "tflow-nav-imu.hpp"
 #include "tflow-ctrl-vstream.h"
 #include "tflow-buf-cli.h"
 
@@ -43,39 +46,19 @@ public:
     void onFrame(int index, struct timeval ts, uint32_t seq, uint8_t* aux_data, size_t aux_data_len);
     void onCamFD(TFlowBuf::pck_cam_fd* msg);
 
-#if 0
-    /*
-     * Data arrived from TFlowCpature -> TFlowBufSrv -> TFlowBufCli
-     * will be copied to TFlowBuf on each frame and sent to all TFlowBuf clients
-     */
-#pragma pack(push, 1)
-    struct imu_data {
-        uint32_t sign;
-        uint32_t tv_sec;      // Local timestamp
-        uint32_t tv_usec;     // Local timestamp
-        uint32_t log_ts;      // Timestamp received from AP
-        int32_t roll;         // In degrees * 100
-        int32_t pitch;        // In degrees * 100
-        int32_t yaw;          // In degrees * 100
-        int32_t altitude;     // In meters * 100
-        int32_t pos_x;
-        int32_t pos_y;
-        int32_t pos_z;
+    int forced_split;   // Set upon vdump timer expiration or 
+                        // upon reaches the maximum size or file write error.
 
-        uint32_t flightModeFlags;
-        uint32_t stateFlags;
-        uint32_t hwHealthSatus;
-        uint8_t  failsafePhase;
-        uint8_t  receiver_status;
+    GSource* vdump_timeout_src;
 
-    } aux_imu_data;
-#pragma pack(pop)
-#endif
 private:
 
-    TFlowCtrlVStream ctrl;
+    int isDumpRequired(uint8_t* aux_data, size_t aux_data_len);
+    void fileSplit();
+    void fileClose(const struct tm* tm_info);
+    void fileCreateDir(const gchar* file_path);
 
-    GSource* src_idle;
+    TFlowCtrlVStream ctrl;
 
     std::vector<InFrame> in_frames{};
     
@@ -85,6 +68,16 @@ private:
     unsigned long jp_buf_sz;
 
     FILE  *mjpeg_file = nullptr;
-    std::string mjpeg_filename = std::string("/tmp/tflow-vstream-dump.bin");
+    std::string mjpeg_filename;
+    ssize_t mjpeg_file_size;
+
+    TFlowImu imu;
+    int mode_split_countdown;
+    time_t split_last_ts;
+
+    ssize_t vdump_total_size;
+    int vdump_total_size_recalc;
+    void vdumpCheckTotalSize();
+
 };
 

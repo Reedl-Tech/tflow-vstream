@@ -17,6 +17,7 @@ find_package(PkgConfig REQUIRED)
 # Add source to this project's executable.
 add_executable (${PROJECT_NAME}
     "main.cpp"
+    "tflow-build-cfg.hpp"
     "tflow-vstream.cpp"
     "tflow-vstream.h"
     "tflow-buf.h"
@@ -32,6 +33,8 @@ add_executable (${PROJECT_NAME}
     "tflow-ctrl-vstream.h"
     "tflow-perfmon.cpp"
     "tflow-perfmon.hpp"
+    "tflow-nav-imu.cpp"
+    "tflow-nav-imu.hpp"
 )
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
@@ -55,7 +58,7 @@ pkg_check_modules(OTHERS REQUIRED IMPORTED_TARGET
     libjpeg
 )
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O2") # Add debug information
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0") # Add debug information
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${GLIB_INCLUDE_DIRS})
 target_include_directories(${PROJECT_NAME} PRIVATE ${GLIBMM_INCLUDE_DIRS})

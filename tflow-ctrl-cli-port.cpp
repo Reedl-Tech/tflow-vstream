@@ -141,7 +141,7 @@ int TFlowCtrlCliPort::onMsg()
 
     /* Check Client specific commands first */
     int resp_err;
-    Json::object j_resp_params;
+    json11::Json::object j_resp_params;
 
     if (in_cmd == "signature") {
         onMsgSign(j_in_params);

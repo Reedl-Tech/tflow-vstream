@@ -1,6 +1,6 @@
 #pragma once
 
-#include <time.h>
+#include <ctime>
 #include <vector>
 
 template<class T>

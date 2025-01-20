@@ -1,7 +1,7 @@
 #pragma once
-
 #include <cassert>
-#include <time.h>
+#include <vector>
+#include <ctime>
 #include <linux/videodev2.h> //V4L2 stuff
 
 #include <glib-unix.h>
@@ -47,7 +47,6 @@ public:
     GSourceFuncs sck_gsfuncs;
 
     TFlowBufSrvPort* buf_srv;
-    
     std::vector<TFlowBuf> tflow_bufs;
 
 private:

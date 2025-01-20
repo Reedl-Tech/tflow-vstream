@@ -22,6 +22,10 @@ gboolean TFlowCtrlSrv::tflow_ctrl_srv_dispatch(GSource* g_source, GSourceFunc ca
 
 TFlowCtrlSrv::~TFlowCtrlSrv()
 {
+    if (sck_fd > 0) {
+        close(sck_fd);
+    }
+    
     if (sck_src) {
         if (sck_tag) {
             g_source_remove_unix_fd((GSource*)sck_src, sck_tag);
@@ -44,6 +48,10 @@ TFlowCtrlSrv::TFlowCtrlSrv(const std::string &_my_name, const std::string& _srv_
     
     my_name = _my_name;
     ctrl_srv_name = _srv_sck_name;
+ 
+    last_idle_check_ts.tv_nsec = 0;
+    last_idle_check_ts.tv_sec = 0;
+
 }
 
 
@@ -76,7 +84,6 @@ int TFlowCtrlSrv::StartListening()
 {
     int rc;
     struct sockaddr_un sock_addr;
-    struct timeval tv;
 
     // Open local UNIX socket
     sck_fd = socket(AF_UNIX, SOCK_SEQPACKET | SOCK_NONBLOCK, 0);
@@ -142,9 +149,7 @@ void TFlowCtrlSrv::onIdle(struct timespec now_ts)
     }
 
     if (sck_state_flag.v == Flag::RISE || sck_state_flag.v == Flag::UNDEF) {
-        int rc;
-
-        rc = StartListening();
+        int rc = StartListening();
         if (rc) {
             // Can't open local UNIX socket - try again later. 
             // It won't help, but anyway ...
@@ -158,10 +163,7 @@ void TFlowCtrlSrv::onIdle(struct timespec now_ts)
 
     if (sck_state_flag.v == Flag::FALL) {
         // ??? how it may happens ???
-
         sck_state_flag.v = Flag::CLR;
     }
 
 }
-
-

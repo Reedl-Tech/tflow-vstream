@@ -1,7 +1,8 @@
-#include <giomm.h>
-#include <glib-unix.h>
 #include <thread>
-#include <signal.h>
+#include <csignal>
+
+#include <glib-unix.h>
+#include <gio/gio.h>
 
 #include "tflow-vstream.h"
 
@@ -46,7 +47,7 @@ static void setup_sig_handlers()
 
 int main(int argc, char** argv)
 {
-    Gio::init();
+//    Gio::init();
 
     g_info("TFlow Video Streamer started");
 

@@ -7,12 +7,20 @@
 using namespace json11;
 
 static const char *raw_cfg_default =  R"( 
-    {"vstreamer_param_1" : "xz"} 
+{
+  "vstreamer_param_1" : "xz",
+  "vdump" : {
+      "path"                 : "/home/root/tflow-vdump", 
+      "suffix_ts"            : "-%F--%H-%M",
+      "suffix_mode"          : "%s",
+      "dump_disarmed"        : 1,
+      "split_on_mode_change" : 1,
+      "split_size_mb"        : 400,
+      "split_time_sec"       : 1200,
+      "jpeg_quality"         : 90
+  }
+} 
 )";
-
-//static int _cmd_cb_sign      (TFlowCtrlVStream* obj, Json& json) { return obj->cmd_cb_sign(json);       }
-//static int _cmd_cb_config    (TFlowCtrlVStream* obj, Json& json) { return obj->cmd_cb_config(json);     }
-//static int _cmd_cb_set_as_def(TFlowCtrlVStream* obj, Json& json) { return obj->cmd_cb_set_as_def(json); }
 
 TFlowCtrlVStream::TFlowCtrlVStream(TFlowVStream& parent) :
     app(parent)
@@ -22,6 +30,7 @@ TFlowCtrlVStream::TFlowCtrlVStream(TFlowVStream& parent) :
 
 void TFlowCtrlVStream::InitServer()
 {
+
 }
 
 void TFlowCtrlVStream::InitConfig()
@@ -67,12 +76,13 @@ void TFlowCtrlVStream::InitConfig()
         json_cfg = Json::parse(raw_cfg_default, err);
     }
 
-    set_cmd_fields((tflow_cmd_field_t*)&cmd_flds_config, json_cfg);
+    setCmdFields((tflow_cmd_field_t*)&cmd_flds_config, json_cfg);
 }
 
-int TFlowCtrlVStream::vstreamer_param_1_get()
+int TFlowCtrlVStream::vdump_get()
 {
-    return (int)cmd_flds_config.vstreamer_param_1.v.num;
+    return 0;
+    //return (int)cmd_flds_config.vdump...;
 }
 
 int TFlowCtrlVStream::state_get()
@@ -97,7 +107,7 @@ int TFlowCtrlVStream::cmd_cb_config(const json11::Json& j_in_params, Json::objec
 {
     g_info("Config command\n    params:\t");
 
-    int rc = set_cmd_fields((tflow_cmd_field_t*)&cmd_flds_config, j_in_params);
+    int rc = setCmdFields((tflow_cmd_field_t*)&cmd_flds_config, j_in_params);
 
     if (rc != 0) return -1;
 

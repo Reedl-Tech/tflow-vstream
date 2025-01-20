@@ -1,6 +1,5 @@
 #pragma once
 
-#include <stdint.h>
 #include <glib-unix.h>
 
 #define TFLOWBUF_MSG_SIGN_ID 0x11
