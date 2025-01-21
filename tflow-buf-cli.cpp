@@ -15,7 +15,7 @@
 #include "tflow-vstream.h"  // is in use?
 #include "tflow-buf-cli.h"
 
-static void tflow_buf_cli_on_idle_once(gpointer data);
+static gboolean tflow_buf_cli_on_idle_once(gpointer data);
 
 TFlowBufCli::~TFlowBufCli()
 {
@@ -78,10 +78,10 @@ int TFlowBufCli::onMsg()
                          
     // Read-out all data from the socket 
     res = recvmsg(sck_fd, &msg, MSG_NOSIGNAL);
-    err = errno;
 
     if (res <= 0) {
-        if (err == EPIPE || err == ECONNREFUSED || err == ENOENT) {
+        err = errno;    // AV: Is errno updated on (res < 0)?
+        if (err == EPIPE || err == ECONNREFUSED || err == ENOENT || err == ECONNRESET) {
             // May happens on Server close
             g_warning("TFlowBufCli: TFlow Buffer Server closed");
         }
@@ -129,6 +129,11 @@ int TFlowBufCli::onMsg()
 
         break;
     }
+    case TFLOWBUF_MSG_PING_ID:
+    case TFLOWBUF_MSG_PONG_ID:
+    {
+        break;
+    }
     default:
         g_warning("Oooops - Unknown message received %d", pck.hdr.id);
     }
@@ -153,7 +158,7 @@ TFlowBufCli::TFlowBufCli(GMainContext* app_context)
     cam_fd = -1;
 }
 
-static void tflow_buf_cli_on_idle_once(gpointer data)
+static gboolean tflow_buf_cli_on_idle_once(gpointer data)
 {
     TFlowBufCli* buf_cli = (TFlowBufCli*)data;
 
@@ -161,6 +166,8 @@ static void tflow_buf_cli_on_idle_once(gpointer data)
     clock_gettime(CLOCK_MONOTONIC, &now_ts);
 
     buf_cli->onIdle(now_ts);
+
+    return G_SOURCE_REMOVE;
 }
 
 gboolean tflow_buf_cli_dispatch(GSource* g_source, GSourceFunc callback, gpointer user_data)
@@ -200,6 +207,10 @@ int TFlowBufCli::sendMsg(TFlowBuf::pck_t *msg, int msg_id)
         msg_len = sizeof(msg->sign);
         comment = "Signature";
         break;
+    case TFLOWBUF_MSG_PING_ID:
+        msg_len = sizeof(msg->ping);
+        comment = "Ping";
+        break;
     default:
         g_warning("TFlowBufCli: Bad message ID - %d", msg_id);
         return 0;
@@ -209,8 +220,11 @@ int TFlowBufCli::sendMsg(TFlowBuf::pck_t *msg, int msg_id)
     msg->hdr.id = msg_id;
 
     res = send(sck_fd, msg, msg_len, MSG_NOSIGNAL | MSG_DONTWAIT);
-    int err = errno;
+
+    clock_gettime(CLOCK_MONOTONIC, &last_send_ts);
+
     if (res == -1) {
+        int err = errno;
         if (err == EPIPE) {
             g_warning("TFlowBufCli: Can't send");
         }
@@ -222,7 +236,6 @@ int TFlowBufCli::sendMsg(TFlowBuf::pck_t *msg, int msg_id)
         return -1;
     }
 
-    clock_gettime(CLOCK_MONOTONIC, &last_send_ts);
     return 0;
 }
 
@@ -240,7 +253,7 @@ int TFlowBufCli::sendRedeem(int index)
 
 int TFlowBufCli::sendPing()
 {
-    TFlowBuf::pck_sign msg_ping {};
+    TFlowBuf::pck_ping msg_ping {};
 
     sendMsg((TFlowBuf::pck_t*)&msg_ping, TFLOWBUF_MSG_PING_ID);
     return 0;
@@ -326,7 +339,7 @@ int TFlowBufCli::Connect()
     /* Assign g_source on the socket */
     sck_gsfuncs.dispatch = tflow_buf_cli_dispatch;
     sck_src = (GSourceCli*)g_source_new(&sck_gsfuncs, sizeof(GSourceCli));
-    sck_tag = g_source_add_unix_fd((GSource*)sck_src, sck_fd, (GIOCondition)(G_IO_IN /* | G_IO_ERR  | G_IO_HUP */));
+    sck_tag = g_source_add_unix_fd((GSource*)sck_src, sck_fd, (GIOCondition)(G_IO_IN /* | G_IO_ERR | G_IO_HUP */));
     sck_src->cli = this;
     g_source_attach((GSource*)sck_src, context);
 
@@ -344,7 +357,7 @@ void TFlowBufCli::onIdle(struct timespec now_ts)
     }
 
     if (sck_state_flag.v == Flag::SET) {
-        // Check idle connection. Capture is active, but camera is not.
+        // Check idle connection. VStream is active, but camera is not.
         if (TFlowPerfMon::diff_timespec_msec(&now_ts, &last_send_ts) > 1000) {
             sendPing();
         }

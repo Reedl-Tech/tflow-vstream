@@ -76,8 +76,8 @@ int TFlowCtrlCliPort::sendResp(const char *cmd, int resp_err, const json11::Json
     std::string s_msg = j_resp.dump();
         
     res = send(sck_fd, s_msg.c_str(), s_msg.length(), MSG_NOSIGNAL | MSG_DONTWAIT);
-    int err = errno;
     if (res == -1) {
+        int err = errno;
         if (err == EPIPE) {
             g_warning("TFlowCtrlCliPort: Can't send to [%s], %s (%d) - %s",
                 signature.c_str(), cmd, err, strerror(err));
@@ -113,9 +113,9 @@ int TFlowCtrlCliPort::onMsgSign(const json11::Json& j_params)
 int TFlowCtrlCliPort::onMsg()
 {
     int res = recv(sck_fd, &in_msg, sizeof(in_msg)-1, 0); //MSG_DONTWAIT 
-    int err = errno;
 
     if (res <= 0) {
+        int err = errno;     // AV: Is errno updated on (res < 0)?
         if (err == ECONNRESET || err == EAGAIN) {
             g_warning("TFlowCtrlCliPort: [%s] disconnected (%d) - closing",
                 this->signature.c_str(), errno);

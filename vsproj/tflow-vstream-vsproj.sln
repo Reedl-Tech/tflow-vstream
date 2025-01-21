@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.34301.259
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35527.113 d17.12
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tflow-vstream-vsproj", "tflow-vstream-vsproj.vcxproj", "{CF523D96-426A-4C8D-A815-48AC585E30FC}"
 EndProject
@@ -23,9 +23,9 @@ Global
 		{CF523D96-426A-4C8D-A815-48AC585E30FC}.Debug|ARM64.ActiveCfg = Debug_Mickledore|ARM64
 		{CF523D96-426A-4C8D-A815-48AC585E30FC}.Debug|ARM64.Build.0 = Debug_Mickledore|ARM64
 		{CF523D96-426A-4C8D-A815-48AC585E30FC}.Debug|ARM64.Deploy.0 = Debug_Mickledore|ARM64
-		{CF523D96-426A-4C8D-A815-48AC585E30FC}.Debug|x64.ActiveCfg = Debug|x64
-		{CF523D96-426A-4C8D-A815-48AC585E30FC}.Debug|x64.Build.0 = Debug|x64
-		{CF523D96-426A-4C8D-A815-48AC585E30FC}.Debug|x64.Deploy.0 = Debug|x64
+		{CF523D96-426A-4C8D-A815-48AC585E30FC}.Debug|x64.ActiveCfg = Debug_Mickledore|x64
+		{CF523D96-426A-4C8D-A815-48AC585E30FC}.Debug|x64.Build.0 = Debug_Mickledore|x64
+		{CF523D96-426A-4C8D-A815-48AC585E30FC}.Debug|x64.Deploy.0 = Debug_Mickledore|x64
 		{CF523D96-426A-4C8D-A815-48AC585E30FC}.Debug|x86.ActiveCfg = Debug|x86
 		{CF523D96-426A-4C8D-A815-48AC585E30FC}.Debug|x86.Build.0 = Debug|x86
 		{CF523D96-426A-4C8D-A815-48AC585E30FC}.Debug|x86.Deploy.0 = Debug|x86

@@ -32,7 +32,7 @@ public:
 
 class TFlowVStream {
 public:
-    TFlowVStream();
+    TFlowVStream(const std::string cfg_fname);
     ~TFlowVStream();
 
     GMainContext *context;

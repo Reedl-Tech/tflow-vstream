@@ -93,16 +93,14 @@ InFrame::InFrame(uint32_t width, uint32_t height, uint32_t format, uint8_t* data
 
 }
 
-TFlowVStream::TFlowVStream() : 
-    ctrl(*this)
+TFlowVStream::TFlowVStream(const std::string cfg_fname) :
+    ctrl(*this, cfg_fname)
 {
     context = g_main_context_new();
     g_main_context_push_thread_default(context);
     
     main_loop = g_main_loop_new(context, false);
     
-    ctrl.InitConfig(); // Q: ? Should it be part of constructor ?
-
     buf_cli = new TFlowBufCli(context);
 
     /* Link TFlow Buffer Client and parent class. Client will call frame 
@@ -249,7 +247,6 @@ void TFlowVStream::OnIdle()
         vdump_total_size_recalc = 0;
         vdumpCheckTotalSize();
     }
-
 
     clock_gettime(CLOCK_MONOTONIC, &now_ts);
 
@@ -449,6 +446,28 @@ void TFlowVStream::onFrame(int index, struct timeval ts, uint32_t seq, uint8_t *
         // Can't open file
         return;
     }
+
+#if 1
+    static int g_dump_raw_img = 0;
+
+    if (g_dump_raw_img) {
+        int w = 384;
+        int h = 288;
+        static uint8_t buff_1[288*384];
+        static uint8_t buff_2[288*384];
+        for (int i = 0; i < in_frame.height; i++) {
+            unsigned char *a = in_frame.jp_rows[i];
+            unsigned char* b = in_frame.data + (i * 384);
+            memcpy(&buff_1[i * 384], a, 384);
+        }
+        memcpy(buff_2, in_frame.data, 288*384);
+
+        FILE* f1 = fopen("raw_dump1", "wb");
+        FILE* f2 = fopen("raw_dump1", "wb");
+        if (f1) fwrite(buff_1, 1, sizeof(buff_1), f1);
+        if (f2) fwrite(buff_2, 1, sizeof(buff_2), f2);
+    }
+#endif
 
     jpeg_set_quality(&jp_cinfo, ctrl.cmd_flds_cfg_vdump.jpeg_quality.v.num, TRUE);
 

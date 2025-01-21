@@ -2,29 +2,44 @@
 #include <glib-unix.h>
 
 #include <json11.hpp>
-#include "tflow-ctrl-vstream.h"
+#include "tflow-vstream.h"
 
 using namespace json11;
 
 static const char *raw_cfg_default =  R"( 
 {
-  "vstreamer_param_1" : "xz",
-  "vdump" : {
-      "path"                 : "/home/root/tflow-vdump", 
-      "suffix_ts"            : "-%F--%H-%M",
-      "suffix_mode"          : "%s",
-      "dump_disarmed"        : 1,
-      "split_on_mode_change" : 1,
-      "split_size_mb"        : 400,
-      "split_time_sec"       : 1200,
-      "jpeg_quality"         : 90
-  }
+    "config" : {
+        "vstreamer_param_1" : "xz",
+        "vdump" : {
+            "path"                 : "/home/root/tflow-vdump", 
+            "suffix_ts_start"      : "-%F--%H-%M",
+            "suffix_ts_stop"       : "--%H-%M",
+            "suffix_mode"          : "%s",
+            "dump_disarmed"        : 1,
+            "split_on_mode_change" : 1,
+            "split_size_mb"        : 400,
+            "split_time_sec"       : 1200,
+            "jpeg_quality"         : 90
+        }
+    }
 } 
 )";
 
-TFlowCtrlVStream::TFlowCtrlVStream(TFlowVStream& parent) :
-    app(parent)
+TFlowCtrlSrvVStream::TFlowCtrlSrvVStream(TFlowCtrlVStream& _ctrl_vstream, GMainContext* context) :
+    TFlowCtrlSrv(
+        std::string("VStream"),
+        std::string("_com.reedl.tflow.ctrl-server-vstream"),
+        context),
+    ctrl_vstream(_ctrl_vstream)
 {
+}
+
+TFlowCtrlVStream::TFlowCtrlVStream(TFlowVStream& _app, const std::string _cfg_fname) :
+    app(_app),
+    cfg_fname(_cfg_fname),
+    ctrl_srv(*this, _app.context)  // ??? pass Ctrl Commands to the server?
+{
+    parseConfig(ctrl_vstream_rpc_cmds, cfg_fname, raw_cfg_default);
     InitServer();
 }
 
@@ -33,6 +48,7 @@ void TFlowCtrlVStream::InitServer()
 
 }
 
+#if 0
 void TFlowCtrlVStream::InitConfig()
 {
     struct stat sb;
@@ -78,6 +94,7 @@ void TFlowCtrlVStream::InitConfig()
 
     setCmdFields((tflow_cmd_field_t*)&cmd_flds_config, json_cfg);
 }
+#endif
 
 int TFlowCtrlVStream::vdump_get()
 {
