@@ -8,7 +8,7 @@
 
 #include "tflow-buf.h"
 
-#define TFLOWBUFSRV_SOCKET_NAME "com.reedl.tflow.buf-server"
+#define TFLOWBUFSRV_SOCKET_NAME "com.reedl.tflow.capture.buf-server"
 
 class TFlowBufSrvPort {
     int dummy;

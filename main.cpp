@@ -2,8 +2,8 @@
 #include <csignal>
 #include <sys/stat.h>
 
+#include <giomm.h>
 #include <glib-unix.h>
-#include <gio/gio.h>
 
 #include "tflow-vstream.h"
 
@@ -77,6 +77,8 @@ void getConfigFilename(int argc, char* argv, std::string cfg_fname)
 
 int main(int argc, char** argv)
 {
+    Gio::init();
+
     g_info("TFlow Video Streamer started");
 
     std::string cfg_fname("/etc/tflow/tflow-vstream-config.json");

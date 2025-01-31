@@ -115,7 +115,7 @@ int TFlowCtrlCliPort::onMsg()
     int res = recv(sck_fd, &in_msg, sizeof(in_msg)-1, 0); //MSG_DONTWAIT 
 
     if (res <= 0) {
-        int err = errno;     // AV: Is errno updated on (res < 0)?
+        int err = errno;     // AV: Is errno updated on (res < 0) only?
         if (err == ECONNRESET || err == EAGAIN) {
             g_warning("TFlowCtrlCliPort: [%s] disconnected (%d) - closing",
                 this->signature.c_str(), errno);

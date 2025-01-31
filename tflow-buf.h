@@ -31,6 +31,9 @@ public:
     /* Q: ? Should the CLI-SRV communication definition to be split from
      *      the buffer class ?
      */
+
+#pragma pack(push,1)
+
     struct pck_hdr {
         int id;
         int seq;
@@ -44,6 +47,8 @@ public:
 
     struct pck_ping {
         struct pck_hdr hdr;
+        char cli_name[32];
+        int  cnt;
     };
 
     struct pck_buff_info {
@@ -89,5 +94,8 @@ public:
         struct pck_buff_info    buff_info;
         struct pck_buff_query   buff_query;
     } pck_t;
+
+#pragma pack(pop)
+
 };
 

@@ -17,6 +17,8 @@
 
 static gboolean tflow_buf_cli_on_idle_once(gpointer data);
 
+#define TFLOWBUFCLI_SIGNATURE "VStream"
+
 TFlowBufCli::~TFlowBufCli()
 {
     Disconnect();
@@ -253,7 +255,9 @@ int TFlowBufCli::sendRedeem(int index)
 
 int TFlowBufCli::sendPing()
 {
-    TFlowBuf::pck_ping msg_ping {};
+    TFlowBuf::pck_ping msg_ping;
+
+    memcpy(msg_ping.cli_name, TFLOWBUFCLI_SIGNATURE, strlen(TFLOWBUFCLI_SIGNATURE));
 
     sendMsg((TFlowBuf::pck_t*)&msg_ping, TFLOWBUF_MSG_PING_ID);
     return 0;
@@ -261,8 +265,6 @@ int TFlowBufCli::sendPing()
 
 int TFlowBufCli::sendSignature()
 {
-#define TFLOWBUFCLI_SIGNATURE "VStream"
-
     TFlowBuf::pck_sign msg_sign {};
 
     memcpy(msg_sign.cli_name, TFLOWBUFCLI_SIGNATURE, strlen(TFLOWBUFCLI_SIGNATURE));
