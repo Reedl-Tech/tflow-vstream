@@ -95,15 +95,22 @@ public:
     int cmd_cb_config(const json11::Json& j_in_params, json11::Json::object& j_out_params);
     int cmd_cb_set_as_def(const json11::Json& j_in_params, json11::Json::object& j_out_params);
 
-#define TFLOW_VSTREAM_RPC_CMD_VERSION    0
-#define TFLOW_VSTREAM_RPC_CMD_CONFIG     1
-#define TFLOW_VSTREAM_RPC_CMD_SET_AS_DEF 2
-#define TFLOW_VSTREAM_RPC_CMD_LAST       3
+#define TFLOW_VSTREAM_RPC_CMD_VERSION       0
+#define TFLOW_VSTREAM_RPC_CMD_STREAMING_CFG 1
+#define TFLOW_VSTREAM_RPC_CMD_RECORDING_CFG 2
+#define TFLOW_VSTREAM_RPC_CMD_SET_AS_DEF    3
+#define TFLOW_VSTREAM_RPC_CMD_LAST          4
 
     tflow_cmd_t ctrl_vstream_rpc_cmds[TFLOW_VSTREAM_RPC_CMD_LAST + 1] = {
-        [TFLOW_VSTREAM_RPC_CMD_VERSION   ] = { "version",     (tflow_cmd_field_t*)&cmd_flds_version,    THIS_M(&TFlowCtrlVStream::cmd_cb_version) },
-        [TFLOW_VSTREAM_RPC_CMD_CONFIG    ] = { "config",      (tflow_cmd_field_t*)&cmd_flds_config,     THIS_M(&TFlowCtrlVStream::cmd_cb_config) },
-        [TFLOW_VSTREAM_RPC_CMD_SET_AS_DEF] = { "set_as_def",  (tflow_cmd_field_t*)&cmd_flds_set_as_def, THIS_M(&TFlowCtrlVStream::cmd_cb_set_as_def) },
+        [TFLOW_VSTREAM_RPC_CMD_VERSION      ] = { "version",     (tflow_cmd_field_t*)&cmd_flds_version,    THIS_M(&TFlowCtrlVStream::cmd_cb_version) },
+        [TFLOW_VSTREAM_RPC_CMD_STREAMING_CFG] = { "streaming_config",      (tflow_cmd_field_t*)&cmd_flds_config,     THIS_M(&TFlowCtrlVStream::cmd_cb_config) },
+      //[TFLOW_VSTREAM_RPC_CMD_STREAMING_CTR] = { "streaming_controls",      (tflow_cmd_field_t*)&cmd_flds_config,     THIS_M(&TFlowCtrlVStream::cmd_cb_config) },
+      //[TFLOW_VSTREAM_RPC_CMD_STREAMING_DEF] = { "streaming_defaults",      (tflow_cmd_field_t*)&cmd_flds_config,     THIS_M(&TFlowCtrlVStream::cmd_cb_config) },
+
+        [TFLOW_VSTREAM_RPC_CMD_RECORDING_CFG] = { "recording_config",      (tflow_cmd_field_t*)&cmd_flds_config,     THIS_M(&TFlowCtrlVStream::cmd_cb_config) },
+      //[TFLOW_VSTREAM_RPC_CMD_RECORDING_CTR] = { "recording_controls",      (tflow_cmd_field_t*)&cmd_flds_config,     THIS_M(&TFlowCtrlVStream::cmd_cb_config) },
+      //[TFLOW_VSTREAM_RPC_CMD_RECORDING_DEF] = { "recording_defaults",      (tflow_cmd_field_t*)&cmd_flds_config,     THIS_M(&TFlowCtrlVStream::cmd_cb_config) },
+        [TFLOW_VSTREAM_RPC_CMD_SET_AS_DEF   ] = { "set_as_def",  (tflow_cmd_field_t*)&cmd_flds_set_as_def, THIS_M(&TFlowCtrlVStream::cmd_cb_set_as_def) },
         [TFLOW_VSTREAM_RPC_CMD_LAST] = { nullptr , nullptr, nullptr }
     };
 

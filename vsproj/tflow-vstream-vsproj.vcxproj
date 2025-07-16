@@ -201,7 +201,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug_Mickledore|ARM64'">
     <PostBuildEvent>
-      <Command>pscp $(OutDir)tflow-vstream root@ucm-imx8m-plus:/home/root</Command>
+      <Command>pscp $(OutDir)tflow-vstream root@bubo-bubo-001:/home/root</Command>
     </PostBuildEvent>
     <ClCompile>
       <CppLanguageStandard>c++17</CppLanguageStandard>

@@ -271,30 +271,32 @@ int TFlowVStream::isDumpRequired(uint8_t* aux_data, size_t aux_data_len)
      */
     
     // !!!!!!!!!! remove me when mounted !!!!!!!!!!
-    imu.mode = TFlowImu::IMU_MODE::DISARMED;
+    // imu.mode = TFlowImu::IMU_MODE::DISARMED;
 
     TFlowImu::IMU_MODE mode_prev = imu.mode;
 
     // No imu data - just dump 
     if (0 == aux_data_len) return 1;
 
-    // In case of error of unknown IMU format let's Dump anyway.
-    imu.ts = 0;
-    if (TFlowImu::getIMU(imu, aux_data, aux_data_len)) return 1;
+    // In case of error of unknown IMU format let's Dump anyway,
+    // but don't check IMU mode (copter/disarmed)
+    imu.getIMU(aux_data, aux_data_len);
+    if (!imu.is_valid) return 1;
 
     // !!!!!!!!!! remove me when mounted !!!!!!!!!!
-    imu.mode = TFlowImu::IMU_MODE::DISARMED;
+    // imu.mode = TFlowImu::IMU_MODE::DISARMED;
+
+    // Normlly, Disarmed, Copter or Plane mode should be debugged separately.
+    // Thus, lets split dump into several files for different modes.
+    if (mode_prev != imu.mode) {
+        forced_split = 1;
+        return 1;
+    }
 
     // By default don't dump if disarmed
     if (imu.mode == TFlowImu::IMU_MODE::DISARMED && 
         ctrl.cmd_flds_cfg_vdump.dump_disarmed.v.num == 0) { 
         return 0;
-    }
-
-    // Normlly, Disarmed, Copter of Plane mode should be debugged separately.
-    // Thus, lets split dump into several files for different modes.
-    if (mode_prev != imu.mode) {
-        forced_split = 1;
     }
 
     return 1;

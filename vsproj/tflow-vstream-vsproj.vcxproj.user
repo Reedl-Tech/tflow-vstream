@@ -9,13 +9,14 @@
     <RemoteTarget>-1029354980;192.168.1.101 (username=, port=22, authentication=Password)</RemoteTarget>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_Mickledore|ARM64'">
-    <RemoteDebuggingTarget>-1531535385;ucm-imx8m-plus (username=, port=22, authentication=PrivateKey)</RemoteDebuggingTarget>
+    <RemoteDebuggingTarget>359070302;192.168.2.3 (username=, port=22, authentication=Password)</RemoteDebuggingTarget>
     <RemoteDebuggerCommand>/home/root/tflow-vstream</RemoteDebuggerCommand>
     <RemoteDebuggerWorkingDirectory>/home/root/</RemoteDebuggerWorkingDirectory>
     <RemoteDebuggingMode>gdbserver</RemoteDebuggingMode>
     <DebuggerFlavor>LinuxDebugger</DebuggerFlavor>
-    <RemoteTarget>-1717057199;av-mickledore-bb (username=, port=22, authentication=Password)</RemoteTarget>
+    <RemoteTarget>-1917410861;192.168.1.101 (username=, port=22, authentication=PrivateKey)</RemoteTarget>
     <AdditionalDebuggerCommands>set substitute-path /usr/src/debug/tflow-vstream/1.0-r0 /home/av/compulab-nxp-bsp/build-ucm-imx8m-plus/workspace/sources/tflow-vstream</AdditionalDebuggerCommands>
+    <RemoteGDBPath>C:\MyWorks\LKD\tflow-sdk\gdb\aarch64-none-elf-gdb.exe</RemoteGDBPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_Mickledore|x64'">
     <RemoteTarget>-914135199;av-mickledore-bb (username=, port=22, authentication=Password)</RemoteTarget>

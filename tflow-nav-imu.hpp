@@ -7,7 +7,10 @@ class TFlowImu {
 public:
 
     TFlowImu() {
-        ts = 0;
+        ts_usec = 0;
+        ts_sec_epoch = 0;
+        ts_sec_init = 0;
+
         yaw = 0;
         roll = 0;
         pitch = 0;
@@ -21,6 +24,9 @@ public:
 
         gps_state = TFlowImu::HW_SENSOR_STATUS::NONE;
         gps_state_prev = TFlowImu::HW_SENSOR_STATUS::NONE;
+
+        is_valid = 0;
+        mode = IMU_MODE::DISARMED;
     }
 
     enum class HW_SENSOR_STATUS {
@@ -58,8 +64,8 @@ public:
             (s == HW_SENSOR_STATUS::UNHEALTHY)   ? "UNHEALTHY" : 
             "unknown";
     }
-#pragma pack(push,1)
 
+#pragma pack(push,1)
     struct ap_imu_v2 {
         uint32_t sign;
         uint32_t tv_sec;      // Local timestamp
@@ -82,9 +88,47 @@ public:
         int32_t  raw_yaw;
     };
 
+    struct ap_imu_v3 {
+        uint32_t sign;
+        uint32_t tv_sec;      // Local timestamp
+        uint32_t tv_usec;     // Local timestamp
+        uint32_t hwHealthStatus;
+        int16_t  rangefinder_val_cm;
+        uint8_t  rangefinder_type;
+        uint8_t  stabilization_mode;        // 0 - Copter, 1 - Plane, 255 - Disarmed
+        int32_t  board_attitude_roll;
+        int32_t  board_attitude_yaw;
+        int32_t  board_attitude_pitch;
+        int32_t  uav_attitude_roll;
+        int32_t  uav_attitude_yaw;
+        int32_t  uav_attitude_pitch;
+        int32_t  pe_baro_alt;
+        int32_t  curr_pos_height;
+        int32_t  position_x;
+        int32_t  position_y;
+        int32_t  position_z;
+        int32_t  raw_yaw;
+
+        uint8_t  gps_flags;
+        uint8_t  gps_fix_type;
+        uint8_t  gps_numSat;
+        uint8_t  gps_is_new;
+        uint16_t gps_hdop;
+        uint16_t gps_eph;
+        uint16_t gps_epv;
+        uint16_t gps_groundCourse;
+        uint16_t gps_groundSpeed;
+        uint32_t gps_lat;
+        uint32_t gps_lon;
+        uint32_t gps_alt;
+    };
+
 #pragma pack(pop)
 
-    uint32_t ts;    //
+    uint32_t ts_usec;       // usec part of Epoch time from Capture
+    uint32_t ts_sec_epoch;  // Epoch time in sec from Capture
+    uint32_t ts_sec_init;   // Epoch time at process start. Is used to calculated ts_usec = epoch - init + usec;
+
     double yaw;     // 'CAS_board_att_yaw'
     double roll;    // 'CAS_board_att_roll' 
     double pitch;   // 'CAS_board_att_pitch'
@@ -101,11 +145,12 @@ public:
     HW_SENSOR_STATUS gps_state;
 
     IMU_MODE mode;
+    int is_valid;
 
-    static int getIMU(TFlowImu& imu, uint8_t* aux_data, uint32_t aux_data_len);
-
-private:
-    static void getIMU_v2(TFlowImu& imu, const TFlowImu::ap_imu_v2* imu_in);
+    void getIMU(uint8_t* aux_data, uint32_t aux_data_len);
+private:    
+    void getIMU_v2(const TFlowImu::ap_imu_v2* imu_in);
+    void getIMU_v3(const TFlowImu::ap_imu_v3* imu_in);
 
 };
 
