@@ -70,4 +70,4 @@ target_link_libraries(${PROJECT_NAME} PkgConfig::OTHERS)
 
 target_link_libraries(${PROJECT_NAME} -lrt)
 
-# TODO: Add tests and install targets if needed.
+install(TARGETS tflow-vstream DESTINATION bin)
