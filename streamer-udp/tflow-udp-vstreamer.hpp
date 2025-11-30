@@ -32,8 +32,8 @@ private:
     int parseCfgAddrPort(struct sockaddr_in *sock_addr_out, const char *cfg_addr_port_in);
 
     // Templates for TLV header
-    uint32_t tflow_tlv_key[3];
-    uint32_t tflow_tlv_dlt[3];
+    uint32_t packet_type_key;
+    uint32_t packet_type_dlt;
 
     // HEVC/H264 encoder
     int onFrameEncoded(TFlowBuf &buf);

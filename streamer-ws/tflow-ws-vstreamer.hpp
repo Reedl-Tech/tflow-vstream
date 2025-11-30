@@ -35,9 +35,8 @@ private:
     
     const TFlowWSStreamerCfg::cfg_ws_streamer *cfg;
 
-    // Templates for TLV header
-    uint32_t tflow_tlv_key[3];
-    uint32_t tflow_tlv_dlt[3];
+    uint32_t packet_type_key;
+    uint32_t packet_type_dlt;
 
     int enc_seq;
 

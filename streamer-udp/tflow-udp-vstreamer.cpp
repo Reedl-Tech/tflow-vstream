@@ -1,3 +1,4 @@
+#include "../tflow-build-cfg.hpp"
 #include <cassert>
 #include <unistd.h>
 #include <fcntl.h>
@@ -127,19 +128,29 @@ int TFlowUDPVStreamer::onFrameEncoded(TFlowBuf &tflow_buf)
     size_t enc_buf_len = tflow_buf.v4l2_buf.m.planes->bytesused;
     uint8_t *enc_buf = (uint8_t *)tflow_buf.start;     
 
-    uint32_t *enc_tlv = 
-        (tflow_buf.v4l2_buf.flags & V4L2_BUF_FLAG_PFRAME)  ? tflow_tlv_dlt :
-        (tflow_buf.v4l2_buf.flags & V4L2_BUF_FLAG_KEYFRAME) ? tflow_tlv_key : 
-        tflow_tlv_dlt;  // Default value - why? 
+    uint32_t enc_packet_type = 
+        (tflow_buf.v4l2_buf.flags & V4L2_BUF_FLAG_PFRAME)   ? packet_type_dlt :
+        (tflow_buf.v4l2_buf.flags & V4L2_BUF_FLAG_KEYFRAME) ? packet_type_key : 0;
 
-    if (enc_tlv == nullptr) goto buf_release;     // Unknown Encoder frame.
-    
-    enc_tlv[1] = pck_seq++;
-    enc_tlv[2] &= 0xFFFF0000;
-    enc_tlv[2] |= enc_buf_len;
+   
+#pragma pack(push, 1)
+    struct enc_tlv_s {
+        uint32_t magic;
+        uint32_t seq;
+        uint32_t packet_type;
+        uint32_t packet_length;
+    } enc_tlv = {
+        .magic = 0x342E5452,
+        .seq = (uint32_t)pck_seq++,
+        .packet_type = enc_packet_type,
+        .packet_length = (uint32_t)enc_buf_len
+    };
+#pragma pack(pop)
 
-    enc_iov[0].iov_base = (caddr_t)enc_tlv;
-    enc_iov[0].iov_len = sizeof(tflow_tlv_key);
+    if (enc_packet_type == 0) goto buf_release;     // Unknown Encoder frame.
+
+    enc_iov[0].iov_base = (caddr_t)&enc_tlv;
+    enc_iov[0].iov_len = sizeof(enc_tlv);
    
     enc_iov[1].iov_base = (caddr_t)tflow_buf.start;
     enc_iov[1].iov_len = tflow_buf.v4l2_buf.m.planes->bytesused;
@@ -267,16 +278,13 @@ TFlowUDPVStreamer::TFlowUDPVStreamer(int _w, int _h,
     encoder = new TFlowEnc(_w, _h, v4l2_enc_cfg,
         std::bind(&TFlowUDPVStreamer::onFrameEncoded, this, std::placeholders::_1));
 
-    tflow_tlv_key[0] = 0x342E5452;
-    tflow_tlv_dlt[0] = 0x342E5452;
-
     if (v4l2_enc_cfg->codec.v.num == TFlowEncUI::ENC_CODEC_H264) {
-        tflow_tlv_key[2] = 0x344B0000;
-        tflow_tlv_dlt[2] = 0x34500000;
+        packet_type_key = 0x344B0000;
+        packet_type_dlt = 0x34500000;
     }
     else if (v4l2_enc_cfg->codec.v.num == TFlowEncUI::ENC_CODEC_H265) {
-        tflow_tlv_key[2] = 0x354B0000;
-        tflow_tlv_dlt[2] = 0x35500000;
+        packet_type_key = 0x354B0000;
+        packet_type_dlt = 0x35500000;
     } else {
         g_critical("UDPStreamer: Bad codec type - %d", v4l2_enc_cfg->codec.v.num);
         assert(0);

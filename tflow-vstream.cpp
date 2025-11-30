@@ -401,6 +401,9 @@ void TFlowVStream::onFrameStreaming(const TFlowBufPck::pck_consume* msg_consume)
             assert(msg_consume->buff_index >= 0 && msg_consume->buff_index < buf_cli_streaming->tflow_bufs.size());
             TFlowBuf &tflow_buf_in = buf_cli_streaming->tflow_bufs.at(msg_consume->buff_index);
 
+            // TODO: implemtent Meta data sending along with encoded frame
+            //       to move dashboard rendering on the host side
+            
             // VStreamer receives aux data via shared memory
             // tflow_buf_in.aux_data = msg_consume->aux_data; 
             // tflow_buf_in.aux_data_len = msg_consume->aux_data_len; 
