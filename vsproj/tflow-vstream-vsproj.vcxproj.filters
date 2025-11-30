@@ -1,0 +1,94 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\main.cpp" />
+    <ClCompile Include="..\tflow-ctrl-cli-port.cpp" />
+    <ClCompile Include="..\tflow-ctrl-srv.cpp" />
+    <ClCompile Include="..\tflow-nav-imu.cpp" />
+    <ClCompile Include="..\tflow-perfmon.cpp" />
+    <ClCompile Include="..\tflow-vstream.cpp" />
+    <ClCompile Include="..\tflow-ctrl-vstream.cpp" />
+    <ClCompile Include="..\tflow-ctrl.cpp" />
+    <ClCompile Include="..\tflow-buf-cli.cpp">
+      <Filter>Shared\tflow-buf</Filter>
+    </ClCompile>
+    <ClCompile Include="..\streamer-ws\tflow-ws-vstreamer.cpp">
+      <Filter>ws-streamer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\streamer-udp\tflow-udp-vstreamer.cpp">
+      <Filter>udp-streamer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\streamer-udp\tflow-udp-vstreamer-if.cpp">
+      <Filter>udp-streamer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\encoder-v4l2\tflow-v4l2enc.cpp">
+      <Filter>encoder-v4l2</Filter>
+    </ClCompile>
+    <ClCompile Include="..\mongoose.c" />
+    <ClCompile Include="..\tflow-buf.cpp">
+      <Filter>Shared\tflow-buf</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\tflow-build-cfg.hpp" />
+    <ClInclude Include="..\tflow-common.hpp" />
+    <ClInclude Include="..\tflow-ctrl-cli-port.hpp" />
+    <ClInclude Include="..\tflow-ctrl-srv.hpp" />
+    <ClInclude Include="..\tflow-nav-imu.hpp" />
+    <ClInclude Include="..\tflow-perfmon.hpp" />
+    <ClInclude Include="..\tflow-vstream.hpp" />
+    <ClInclude Include="..\tflow-ctrl-vstream.hpp" />
+    <ClInclude Include="..\tflow-ctrl.hpp" />
+    <ClInclude Include="buildin.h" />
+    <ClInclude Include="..\tflow-buf-cli.hpp">
+      <Filter>Shared\tflow-buf</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tflow-buf.hpp">
+      <Filter>Shared\tflow-buf</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tflow-buf-pck.hpp">
+      <Filter>Shared\tflow-buf</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tflow-ctrl-srv-vstream.hpp" />
+    <ClInclude Include="..\tflow-ctrl-vstream-ui.hpp" />
+    <ClInclude Include="..\streamer-ws\tflow-ws-vstreamer.hpp">
+      <Filter>ws-streamer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\streamer-ws\tflow-ws-vstreamer-cfg.hpp">
+      <Filter>ws-streamer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\streamer-udp\tflow-udp-vstreamer.hpp">
+      <Filter>udp-streamer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\streamer-udp\tflow-udp-vstreamer-cfg.hpp">
+      <Filter>udp-streamer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\encoder-v4l2\tflow-v4l2enc.hpp">
+      <Filter>encoder-v4l2</Filter>
+    </ClInclude>
+    <ClInclude Include="..\encoder-v4l2\tflow-v4l2enc-cfg.hpp">
+      <Filter>encoder-v4l2</Filter>
+    </ClInclude>
+    <ClInclude Include="..\mongoose.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Shared">
+      <UniqueIdentifier>{d3e0d30f-114c-473b-9633-383f56d9783c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shared\tflow-buf">
+      <UniqueIdentifier>{cecba52e-73b1-42c6-985a-b4e7fc646cfd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="udp-streamer">
+      <UniqueIdentifier>{1861ed4f-52b6-4ef0-b5b5-f89feb6d426d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ws-streamer">
+      <UniqueIdentifier>{f564e2f8-2ae7-4b6f-9f6f-b8ae6ae9c5c0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="encoder-v4l2">
+      <UniqueIdentifier>{d0ddac30-281b-418a-9d9d-d842c20e087e}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

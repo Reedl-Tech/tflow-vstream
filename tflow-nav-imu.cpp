@@ -10,7 +10,7 @@ using namespace json11;
 
 using namespace std;
 
-void TFlowImu::getIMU(uint8_t* aux_data, uint32_t aux_data_len)
+void TFlowImu::getIMU(const uint8_t* aux_data, uint32_t aux_data_len)
 {
     uint32_t sign = *(uint32_t*)aux_data;
 

@@ -147,7 +147,7 @@ public:
     IMU_MODE mode;
     int is_valid;
 
-    void getIMU(uint8_t* aux_data, uint32_t aux_data_len);
+    void getIMU(const uint8_t* aux_data, uint32_t aux_data_len);
 private:    
     void getIMU_v2(const TFlowImu::ap_imu_v2* imu_in);
     void getIMU_v3(const TFlowImu::ap_imu_v3* imu_in);

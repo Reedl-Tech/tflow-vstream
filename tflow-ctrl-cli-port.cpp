@@ -1,7 +1,10 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-#include "tflow-ctrl-srv.h"
+#include "tflow-ctrl-srv.hpp"
+
+using namespace json11;
+using namespace std;
 
 gboolean TFlowCtrlCliPort::tflow_ctrl_cli_port_dispatch(GSource* g_source, GSourceFunc callback, gpointer user_data)
 {
@@ -18,6 +21,11 @@ gboolean TFlowCtrlCliPort::tflow_ctrl_cli_port_dispatch(GSource* g_source, GSour
 
 TFlowCtrlCliPort::~TFlowCtrlCliPort()
 {
+    if (in_msg) {
+        g_free(in_msg);
+        in_msg = nullptr;
+    }
+
     if (sck_fd != -1) {
         close(sck_fd);
     }
@@ -43,30 +51,45 @@ TFlowCtrlCliPort::TFlowCtrlCliPort(GMainContext* _context, TFlowCtrlSrv &_srv, i
 
     CLEAR(sck_gsfuncs);
 
+    in_msg_size = 1024 * 1024;
+    in_msg = (char*)g_malloc(in_msg_size);
+
     /* Assign g_source on the socket */
     sck_gsfuncs.dispatch = tflow_ctrl_cli_port_dispatch;
     sck_src = (GSourceCliPort*)g_source_new(&sck_gsfuncs, sizeof(GSourceCliPort));
     sck_tag = g_source_add_unix_fd((GSource*)sck_src, sck_fd, (GIOCondition)(G_IO_IN | G_IO_ERR | G_IO_HUP));
     sck_src->cli_port = this;
     g_source_attach((GSource*)sck_src, _context);
+
+    clock_gettime(CLOCK_MONOTONIC, &last_send_ts);
+    clock_gettime(CLOCK_MONOTONIC, &last_idle_check);
 }
-//    int TFlowCtrlCli::sendMsg(const char* cmd, json11::Json::object j_params)
+
 int TFlowCtrlCliPort::sendResp(const char *cmd, int resp_err, const json11::Json::object& j_resp_params)
 {
     ssize_t res;
+    Json j_resp;
+
 //    if (sck_state_flag.v != Flag::SET) return 0;
 
-    json11::Json j_resp;
-
     if (resp_err) {
-        j_resp = json11::Json::object{
-            { "cmd"    , cmd           },
-            { "dir"    , "response"    },        // For better log readability only
-            { "err"    , resp_err      }
+        static const std::string err_unknown("unknown");
+        const string *err_msg = &err_unknown;
+
+        auto j_err_it  = j_resp_params.find("error");
+        if (j_err_it != j_resp_params.end() && j_err_it->second.is_string()) {
+            err_msg = &j_err_it->second.string_value();
+        } 
+
+        j_resp = Json::object{
+            { "cmd"     , cmd           },
+            { "dir"     , "response"    },        // For better log readability only
+            { "err"     , resp_err      },
+            { "err_msg" , *err_msg      }
         };
     }
     else {
-        j_resp = json11::Json::object{
+        j_resp = Json::object{
             { "cmd"    , cmd           },
             { "dir"    , "response"    },        // For better log readability only
             { "params" , j_resp_params }
@@ -92,15 +115,14 @@ int TFlowCtrlCliPort::sendResp(const char *cmd, int resp_err, const json11::Json
         srv.my_name.c_str(),
         signature.c_str(), cmd);
 
-    last_send_ts = clock();
+    clock_gettime(CLOCK_MONOTONIC, &last_send_ts);
+
     return 0;
 }
 
 
 int TFlowCtrlCliPort::onMsgSign(const json11::Json& j_params)
 {
-    int rc;
-
     signature = j_params["peer_signature"].string_value();
     pid = j_params["pid"].int_value();
 
@@ -112,10 +134,10 @@ int TFlowCtrlCliPort::onMsgSign(const json11::Json& j_params)
 
 int TFlowCtrlCliPort::onMsg()
 {
-    int res = recv(sck_fd, &in_msg, sizeof(in_msg)-1, 0); //MSG_DONTWAIT 
+    int res = recv(sck_fd, in_msg, in_msg_size - 1, 0); //MSG_DONTWAIT 
 
     if (res <= 0) {
-        int err = errno;     // AV: Is errno updated on (res < 0) only?
+        int err = errno;
         if (err == ECONNRESET || err == EAGAIN) {
             g_warning("TFlowCtrlCliPort: [%s] disconnected (%d) - closing",
                 this->signature.c_str(), errno);
@@ -129,7 +151,7 @@ int TFlowCtrlCliPort::onMsg()
     in_msg[res] = 0;
 
     std::string j_err;
-    const json11::Json j_in_msg = json11::Json::parse(in_msg, j_err);
+    const Json j_in_msg = Json::parse(in_msg, j_err);
 
     if (j_in_msg.is_null()) {
         g_warning("TFlowCtrlCliPort: [%s] Can't parse input message - %s",
@@ -137,11 +159,11 @@ int TFlowCtrlCliPort::onMsg()
     }
 
     const std::string in_cmd = j_in_msg["cmd"].string_value();
-    const json11::Json j_in_params = j_in_msg["params"];
+    const Json j_in_params = j_in_msg["params"];
 
     /* Check Client specific commands first */
     int resp_err;
-    json11::Json::object j_resp_params;
+    Json::object j_resp_params;
 
     if (in_cmd == "signature") {
         onMsgSign(j_in_params);
@@ -151,6 +173,6 @@ int TFlowCtrlCliPort::onMsg()
         srv.onTFlowCtrlMsg(in_cmd, j_in_params, j_resp_params, resp_err);
     }
 
-    return sendResp(in_cmd.c_str(), resp_err, j_resp_params );
+    return sendResp(in_cmd.c_str(), resp_err, j_resp_params);
 }
 

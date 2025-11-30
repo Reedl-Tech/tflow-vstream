@@ -3,8 +3,7 @@
 #define UBUNTU 0
 #define YOCTO 1
 
-#define GLIB_MAJOR_VERSION 2
-#define GLIB_MINOR_VERSION 66
+#define _WIN32 0
 
 #if UBUNTU
 #define __SSP_STRONG__ 3
@@ -355,6 +354,7 @@
 #define __UINT_FAST8_TYPE__ unsigned char
 #define __ATOMIC_ACQ_REL 4
 #define __ATOMIC_RELEASE 3
+#define __WORDSIZE 64
 #endif
 
 #if YOCTO
@@ -721,6 +721,7 @@
 #define __UINT_LEAST32_MAX__ 0xffffffffU
 #define __ATOMIC_ACQ_REL 4
 #define __ATOMIC_RELEASE 3
+#define __WORDSIZE 64
 
 #ifdef   __cplusplus
 # define __BEGIN_DECLS  extern "C" {                                            

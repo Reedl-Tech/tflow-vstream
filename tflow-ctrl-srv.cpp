@@ -1,12 +1,15 @@
+#include <unordered_map>
 #include <sys/socket.h>
 #include <sys/un.h>
 
 #include <json11.hpp>
-using namespace json11;
 
+#include <glib-unix.h>
 #include "tflow-common.hpp"
 #include "tflow-perfmon.hpp"
-#include "tflow-ctrl-srv.h"
+#include "tflow-ctrl-srv.hpp"
+
+using namespace json11;
 
 gboolean TFlowCtrlSrv::tflow_ctrl_srv_dispatch(GSource* g_source, GSourceFunc callback, gpointer user_data)
 {
@@ -15,9 +18,7 @@ gboolean TFlowCtrlSrv::tflow_ctrl_srv_dispatch(GSource* g_source, GSourceFunc ca
 
     g_info("TFlowCtrl: Incoming connection");
 
-    srv->onConnect();
-
-    return G_SOURCE_CONTINUE;
+    return srv->onConnect();
 }
 
 TFlowCtrlSrv::~TFlowCtrlSrv()
@@ -48,14 +49,12 @@ TFlowCtrlSrv::TFlowCtrlSrv(const std::string &_my_name, const std::string& _srv_
     
     my_name = _my_name;
     ctrl_srv_name = _srv_sck_name;
- 
+
     last_idle_check_ts.tv_nsec = 0;
     last_idle_check_ts.tv_sec = 0;
-
 }
 
-
-void TFlowCtrlSrv::onConnect()
+gboolean TFlowCtrlSrv::onConnect()
 {
     int cli_port_fd;
     int rc;
@@ -66,18 +65,18 @@ void TFlowCtrlSrv::onConnect()
     cli_port_fd = accept(sck_fd, (struct sockaddr*)&peer_addr, &sock_len);
     if (cli_port_fd == -1) {
         g_warning("TFlowCtrlSrv: Can't connect a TFlow Ctrl Client");
-        return;
+        return G_SOURCE_CONTINUE;
     }
 
     rc = onCliPortConnect(cli_port_fd);
     if (rc) {
         close(cli_port_fd);
-        return;
+        return G_SOURCE_CONTINUE;
     }
     g_warning("TFlowCtrlSrv: TFlow Control Client [%s] (%d) is connected",
         peer_addr.sun_path, cli_port_fd);
 
-    return;
+    return G_SOURCE_CONTINUE;
 }
 
 int TFlowCtrlSrv::StartListening()
@@ -129,7 +128,7 @@ int TFlowCtrlSrv::StartListening()
     return 0;
 }
 
-void TFlowCtrlSrv::onIdle(struct timespec now_ts)
+void TFlowCtrlSrv::onIdle(const struct timespec &now_ts)
 {
     if (sck_state_flag.v == Flag::SET) {
         return;
@@ -140,7 +139,6 @@ void TFlowCtrlSrv::onIdle(struct timespec now_ts)
             last_idle_check_ts = now_ts;
             sck_state_flag.v = Flag::RISE;
         }
-
         return;
     }
 
@@ -166,4 +164,34 @@ void TFlowCtrlSrv::onIdle(struct timespec now_ts)
         sck_state_flag.v = Flag::CLR;
     }
 
+}
+
+int TFlowCtrlSrv::onCliPortConnect(int fd)
+{
+    auto cli_port_p = new TFlowCtrlCliPort(context, *this, fd);
+    ctrl_clis.emplace(fd, *cli_port_p);
+
+    return 0;
+}
+
+void TFlowCtrlSrv::onCliPortError(int fd)
+{
+    auto ctrl_cli_it = ctrl_clis.find(fd);
+
+    if (ctrl_cli_it == ctrl_clis.end()) {
+        g_error("Ooops in %s", __FUNCTION__);
+    }
+
+    TFlowCtrlCliPort& cli_port = ctrl_cli_it->second;
+
+    g_warning("TFlowCtrlSrv: Release port [%s] (%d)",
+        cli_port.signature.c_str(), fd);
+
+    ctrl_clis.erase(fd);
+
+#if CODE_BROWSE
+    TFlowCtrlCliPort::~TFlowCtrlCliPort();
+#endif
+
+    return;
 }

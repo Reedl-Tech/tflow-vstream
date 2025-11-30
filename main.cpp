@@ -2,10 +2,10 @@
 #include <csignal>
 #include <sys/stat.h>
 
-#include <giomm.h>
+//#include <giomm.h>
 #include <glib-unix.h>
 
-#include "tflow-vstream.h"
+#include "tflow-vstream.hpp"
 
 TFlowVStream *gp_app;
 
@@ -77,14 +77,19 @@ void getConfigFilename(int argc, char* argv, std::string cfg_fname)
 
 int main(int argc, char** argv)
 {
-    Gio::init();
+    //Gio::init();
 
     g_info("TFlow Video Streamer started");
 
     std::string cfg_fname("/etc/tflow/tflow-vstream-config.json");
     getConfigFilename(argc, argv[1], cfg_fname);
+    
+    GMainContext *context1 = g_main_context_ref_thread_default();
+    GMainContext *context = g_main_context_get_thread_default();
+    //GMainContext *context = g_main_context_new();
+    //g_main_context_push_thread_default(context);
 
-    gp_app = new TFlowVStream(cfg_fname);
+    gp_app = new TFlowVStream(context, cfg_fname);
 
     setup_sig_handlers();
 

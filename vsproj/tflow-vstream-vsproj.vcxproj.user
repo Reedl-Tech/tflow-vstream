@@ -1,24 +1,26 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='6.1-Mickledore|ARM64'">
     <RemoteDebuggingTarget>4573005;192.168.2.2 (username=, port=22, authentication=Password)</RemoteDebuggingTarget>
     <RemoteDebuggerCommand>/home/root/tflow-vstream</RemoteDebuggerCommand>
     <RemoteDebuggerWorkingDirectory>/home/root/</RemoteDebuggerWorkingDirectory>
     <RemoteDebuggingMode>gdbserver</RemoteDebuggingMode>
     <DebuggerFlavor>LinuxDebugger</DebuggerFlavor>
-    <RemoteTarget>-1029354980;192.168.1.101 (username=, port=22, authentication=Password)</RemoteTarget>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_Mickledore|ARM64'">
-    <RemoteDebuggingTarget>359070302;192.168.2.3 (username=, port=22, authentication=Password)</RemoteDebuggingTarget>
-    <RemoteDebuggerCommand>/home/root/tflow-vstream</RemoteDebuggerCommand>
-    <RemoteDebuggerWorkingDirectory>/home/root/</RemoteDebuggerWorkingDirectory>
-    <RemoteDebuggingMode>gdbserver</RemoteDebuggingMode>
-    <DebuggerFlavor>LinuxDebugger</DebuggerFlavor>
-    <RemoteTarget>-1917410861;192.168.1.101 (username=, port=22, authentication=PrivateKey)</RemoteTarget>
+    <RemoteTarget>-1293454544;192.168.1.102 (username=, port=22, authentication=Password)</RemoteTarget>
     <AdditionalDebuggerCommands>set substitute-path /usr/src/debug/tflow-vstream/1.0-r0 /home/av/compulab-nxp-bsp/build-ucm-imx8m-plus/workspace/sources/tflow-vstream</AdditionalDebuggerCommands>
     <RemoteGDBPath>C:\MyWorks\LKD\tflow-sdk\gdb\aarch64-none-elf-gdb.exe</RemoteGDBPath>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_Mickledore|x64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='6.6-8dev|ARM64'">
+    <RemoteDebuggingTarget>4573005;192.168.2.2 (username=, port=22, authentication=Password)</RemoteDebuggingTarget>
+    <RemoteDebuggerCommand>/root/tflow-vstream</RemoteDebuggerCommand>
+    <RemoteDebuggerWorkingDirectory>/root/</RemoteDebuggerWorkingDirectory>
+    <RemoteDebuggingMode>gdbserver</RemoteDebuggingMode>
+    <DebuggerFlavor>LinuxDebugger</DebuggerFlavor>
+    <RemoteTarget>-706648530;192.168.1.100 (username=, port=22, authentication=Password)</RemoteTarget>
+    <AdditionalDebuggerCommands>set substitute-path /usr/src/debug/tflow-vstream/1.0 /home/av/8dev-Scarthgap/compulab-nxp-bsp/build-ucm-imx8m-plus-bubo/workspace/sources/tflow-vstream</AdditionalDebuggerCommands>
+    <RemoteGDBPath>C:\MyWorks\LKD\tflow-sdk\gdb\aarch64-none-elf-gdb.exe</RemoteGDBPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='6.1-Mickledore|x64'">
     <RemoteTarget>-914135199;av-mickledore-bb (username=, port=22, authentication=Password)</RemoteTarget>
     <RemoteDebuggerCommand>/home/root/tflow-vstream</RemoteDebuggerCommand>
     <RemoteDebuggerWorkingDirectory>/home/root/</RemoteDebuggerWorkingDirectory>
@@ -28,12 +30,14 @@
     <DebuggerFlavor>LinuxDebugger</DebuggerFlavor>
     <RemoteDebuggingTarget>270623776;ucm-imx8m-plus (username=, port=22, authentication=Password)</RemoteDebuggingTarget>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='6.6-8dev|x64'">
+    <RemoteTarget>-914135199;av-mickledore-bb (username=, port=22, authentication=Password)</RemoteTarget>
     <RemoteDebuggerCommand>/home/root/tflow-vstream</RemoteDebuggerCommand>
     <RemoteDebuggerWorkingDirectory>/home/root/</RemoteDebuggerWorkingDirectory>
     <AdditionalDebuggerCommands>set substitute-path /usr/src/debug/tflow-vstream/1.0-r0 /home/av/compulab-nxp-bsp/build-ucm-imx8m-plus/workspace/sources/tflow-vstream</AdditionalDebuggerCommands>
     <RemoteDebuggingMode>gdbserver</RemoteDebuggingMode>
     <RemoteGDBPath>C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\VC\Linux\bin\gdb\gdb-multiarch\gdb-multiarch.exe</RemoteGDBPath>
     <DebuggerFlavor>LinuxDebugger</DebuggerFlavor>
+    <RemoteDebuggingTarget>270623776;ucm-imx8m-plus (username=, port=22, authentication=Password)</RemoteDebuggingTarget>
   </PropertyGroup>
 </Project>

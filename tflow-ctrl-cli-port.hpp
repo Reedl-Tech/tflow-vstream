@@ -5,7 +5,6 @@
 #include <glib-unix.h>
 #include <json11.hpp>
 
-#include "tflow-ctrl-cli-port.h"
 class TFlowCtrlSrv;
 class TFlowCtrlCliPort {
 
@@ -19,8 +18,8 @@ private:
 
     TFlowCtrlSrv &srv;      // is used to report socket error to the Server
 
-    clock_t last_idle_check = 0;
-    clock_t last_send_ts = 0;
+    struct timespec last_idle_check;
+    struct timespec last_send_ts;
 
     int pid;
 
@@ -40,5 +39,6 @@ private:
     gpointer        sck_tag;
     GSourceFuncs    sck_gsfuncs;
 
-    char in_msg[4096];
+    size_t in_msg_size;
+    char* in_msg;
 };
