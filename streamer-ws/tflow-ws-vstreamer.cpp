@@ -278,11 +278,12 @@ TFlowBuf* TFlowWsVStreamer::getFreeBuffer()
     return encoder->getFreeInputBuffer();
 }
 
-int TFlowWsVStreamer::start()
+int TFlowWsVStreamer::restart()
 {
-    int rc;
     TFlowEncCfg::cfg_v4l2_enc *v4l2_enc_cfg = 
         (TFlowEncCfg::cfg_v4l2_enc*)cfg->v4l2_enc.v.ref;
+
+    stop();
 
     if (v4l2_enc_cfg->codec.v.num == TFlowEncUI::ENC_CODEC_H264) {
         packet_type_key = 0x344B0000;
@@ -311,45 +312,51 @@ int TFlowWsVStreamer::start()
         }
     }
 
-    /* Create WebSocket (mongoose) thread */
-    pthread_attr_t attr;
-
-    pthread_cond_init(&th_cond, nullptr);
-    pthread_attr_init(&attr);
-
-    rc = pthread_create(&th, &attr, _thread, this);
-    pthread_attr_destroy(&attr);
-
-    terminate_thread = 0;
     enc_seq = 0;
 
     return 0;
 }
 
-TFlowWsVStreamer::TFlowWsVStreamer(int _w, int _h, uint32_t _fmt,
-    const TFlowWSStreamerCfg::cfg_ws_streamer *ws_streamer_cfg)
+int TFlowWsVStreamer::start(int _w, int _h, uint32_t _fmt)
 {
-    int rc;
- 
     frame_width = _w;
     frame_height = _h;
     in_frame_fmt = _fmt;
 
+    return restart();
+}
+
+TFlowWsVStreamer::TFlowWsVStreamer(
+    const TFlowWSStreamerCfg::cfg_ws_streamer *ws_streamer_cfg)
+{
+    frame_width = 0;
+    frame_height = 0;
+    in_frame_fmt = 0;
+
+    encoder = nullptr;
     cfg = ws_streamer_cfg;
 
     last_idle_check = 0;
-    
-    start();
+
+    // Create WebSocket (mongoose) thread
+    //     Socket will be in idle state. I.e. no payload data transfer until 
+    //     ws_streamer->start(). 
+    // TODO: Send "NO SIGNAL" packet while in idle to render something on 
+    //       canvas while source isn't connected
+    //       
+    pthread_attr_t attr;
+
+    pthread_cond_init(&th_cond, nullptr);
+    pthread_attr_init(&attr);
+
+    int rc = pthread_create(&th, &attr, _thread, this);
+    pthread_attr_destroy(&attr);
+
+    terminate_thread = 0;
 }
 
 void TFlowWsVStreamer::stop()
 {
-    // Send termination notification to WS thread
-    uint32_t wake_up_data = -1;
-    mg_wakeup(&mgr, 1, &wake_up_data, sizeof(wake_up_data));
-
-    int rc = pthread_join(th, nullptr);
-
     if (encoder) {
         delete encoder;
         encoder = nullptr;
@@ -359,6 +366,12 @@ void TFlowWsVStreamer::stop()
 TFlowWsVStreamer::~TFlowWsVStreamer()
 {
     stop();
+
+    // Send termination notification to WS thread
+    uint32_t wake_up_data = -1;
+    mg_wakeup(&mgr, 1, &wake_up_data, sizeof(wake_up_data));
+
+    int rc = pthread_join(th, nullptr);
 }
 
 void TFlowWsVStreamer::onConfigValidate(json11::Json::object& j_out_params,
@@ -386,10 +399,8 @@ int TFlowWsVStreamer::onConfig(json11::Json::object& j_out_params)
         int rc = encoder->onConfig(j_out_params);
         if (rc == -1) {
             // New configuration can be applied through full restart only
-            stop();
-            start();
+            restart();
         }
-
     }
 
     return 0;

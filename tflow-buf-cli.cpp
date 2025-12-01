@@ -222,7 +222,7 @@ int TFlowBufCli::onMsg()
 
     if (res <= 0) {
         err = errno;
-        if (err == EPIPE || err == ECONNREFUSED || err == ENOENT) {
+        if (err == EPIPE || err == ECONNREFUSED || err == ENOENT || err == ECONNRESET || err == ENOTTY) {
             // May happens on Server close
             g_warning("TFlowBufCli: TFlow Buffer Server closed");
         }

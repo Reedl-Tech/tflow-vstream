@@ -50,7 +50,6 @@ TFlowVStream::TFlowVStream(GMainContext *_context, const std::string cfg_fname) 
     context(_context),
     ctrl(*this, cfg_fname)  // Att!: Must be constructed after submodules' pointers initialization
 {
-
    
     main_loop = g_main_loop_new(context, false);
     
@@ -73,6 +72,8 @@ TFlowVStream::TFlowVStream(GMainContext *_context, const std::string cfg_fname) 
 
 TFlowVStream::~TFlowVStream()
 {
+    if (ws_streamer) delete ws_streamer;
+
     if (buf_cli_recording) delete buf_cli_recording;
     if (buf_cli_streaming) delete buf_cli_streaming;
 
@@ -87,7 +88,6 @@ TFlowVStream::~TFlowVStream()
     context = NULL;
 
     jpEncClose();
-
 }
 
 static gboolean tflow_vstream_on_vdump_timer(gpointer data)
@@ -568,8 +568,7 @@ void TFlowVStream::onSrcGoneRecording()
 void TFlowVStream::onSrcGoneStreaming()
 {
     if (ws_streamer) {
-        delete ws_streamer;
-        ws_streamer = nullptr;
+        ws_streamer->stop();
     }
 
     if (udp_streamer) {
@@ -653,11 +652,8 @@ void TFlowVStream::onSrcReadyStreaming(const TFlowBufPck::pck_fd* src_info)
 
     // TODO: Support both streamers or make them mutally exclusive on build time?
 #if WS_STREAMER
-    const auto ws_streamer_cfg = 
-        (TFlowWSStreamerCfg::cfg_ws_streamer*)ctrl.cmd_flds_cfg_streaming.ws_streamer.v.ref;
 
-    ws_streamer = new TFlowWsVStreamer(src_info->width, src_info->height, src_info->format,
-        ws_streamer_cfg);
+    ws_streamer->start(src_info->width, src_info->height, src_info->format);
 
 #elif UDP_STREAMER
     
@@ -678,11 +674,21 @@ int TFlowVStream::setStreamingSrc(int src, int en)
         buf_cli_streaming = nullptr;
     }
 
+    if (ws_streamer) {
+        delete ws_streamer;
+        ws_streamer = nullptr;
+    }
+
     if (!en) {  // Streaming disabled
         return 0;
     }
 
-    // Check is the stream really changed
+    const auto ws_streamer_cfg = 
+        (TFlowWSStreamerCfg::cfg_ws_streamer*)ctrl.cmd_flds_cfg_streaming.ws_streamer.v.ref;
+
+    ws_streamer = new TFlowWsVStreamer(ws_streamer_cfg);
+
+    // Check is the stream realy changed
     // ???
     const char *srv_name = 
         (src == TFlowCtrlVStreamUI::VIDEO_SRC::VIDEO_SRC_CAM0) ? "com.reedl.tflow.capture0.buf-server" :

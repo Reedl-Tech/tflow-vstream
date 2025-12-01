@@ -14,8 +14,7 @@
 
 class TFlowWsVStreamer {
 public:
-    TFlowWsVStreamer(int _w, int _h, uint32_t _fmt,
-        const TFlowWSStreamerCfg::cfg_ws_streamer *ws_streamed_cfg);
+    TFlowWsVStreamer(const TFlowWSStreamerCfg::cfg_ws_streamer *ws_streamed_cfg);
 
     ~TFlowWsVStreamer();
 
@@ -28,12 +27,15 @@ public:
 
     TFlowEnc *encoder;
 
-private:
-
-    int start();
+    int start(int _w, int _h, uint32_t _fmt);
     void stop();
+
+private:
     
     const TFlowWSStreamerCfg::cfg_ws_streamer *cfg;
+
+    int restart();  // The same as start,  but without frame configuration change. 
+                    // Is used on encoder configuration change.
 
     uint32_t packet_type_key;
     uint32_t packet_type_dlt;
