@@ -75,6 +75,7 @@ private:
     void fileClose(const struct tm* tm_info = nullptr);
     void fileCreateDir(const gchar* file_path);
     void jpEncClose();
+    int  jpEncOpen(int width, int height, const std::vector<TFlowBuf> &bufs);
 
     TFlowCtrlVStream ctrl;
 

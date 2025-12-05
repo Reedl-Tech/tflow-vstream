@@ -53,13 +53,9 @@ TFlowVStream::TFlowVStream(GMainContext *_context, const std::string cfg_fname) 
    
     main_loop = g_main_loop_new(context, false);
     
-    /* JPEG LIB related init */
     jp_buf = nullptr;
     jp_buf_sz = 0;
-
     CLEAR(jp_cinfo);
-    jp_cinfo.err = jpeg_std_error(&jp_err);
-    jpeg_create_compress(&jp_cinfo);
 
     mjpeg_file_size = 0;
 
@@ -250,6 +246,42 @@ int TFlowVStream::isDumpRequired(const uint8_t* aux_data, size_t aux_data_len)
     }
 
     return 1;
+}
+
+int TFlowVStream::jpEncOpen(int src_width, int src_height, const std::vector<TFlowBuf> &bufs)
+{
+    jp_buf = nullptr;
+    jp_buf_sz = 0;
+
+    CLEAR(jp_cinfo);
+    jp_cinfo.err = jpeg_std_error(&jp_err);
+    jpeg_create_compress(&jp_cinfo);
+
+    jp_cinfo.input_components = 1;           /* # of color components per pixel */
+    jp_cinfo.in_color_space = JCS_GRAYSCALE; /* colorspace of input image */
+
+    jp_cinfo.image_width = src_width;
+    jp_cinfo.image_height = src_height;
+
+    jpeg_set_defaults(&jp_cinfo);
+    jp_buf_sz = src_width * src_height;
+    jp_buf = (uint8_t*)malloc(jp_buf_sz);
+
+    in_frames_jp.reserve(bufs.size());
+
+    for (auto &buf : bufs) {
+        in_frames_jp.emplace(in_frames_jp.end(),
+            // Parameters of InFrame constructor
+            src_width, 
+            src_height, 
+            V4L2_PIX_FMT_GREY, 
+            (uint8_t *)buf.start);
+#if CODE_BROWSE
+            InFrameJP x;
+#endif
+    }
+
+    return 0;
 }
 
 void TFlowVStream::jpEncClose()
@@ -590,8 +622,6 @@ void TFlowVStream::onSrcReadyRecording(const TFlowBufPck::pck_fd* src_info)
     switch (src_info->format) {
     case V4L2_PIX_FMT_GREY:
         // Native format for Thermal imaging camera.
-        jp_cinfo.input_components = 1;           /* # of color components per pixel */
-        jp_cinfo.in_color_space = JCS_GRAYSCALE; /* colorspace of input image */
         break;
     case V4L2_PIX_FMT_NV12:
     case V4L2_PIX_FMT_ABGR32:
@@ -605,26 +635,7 @@ void TFlowVStream::onSrcReadyRecording(const TFlowBufPck::pck_fd* src_info)
         return;
     }
 
-    jp_cinfo.image_width = src_info->width;
-    jp_cinfo.image_height = src_info->height;
-
-    jpeg_set_defaults(&jp_cinfo);
-    jp_buf_sz = src_info->width * src_info->height;
-    jp_buf = (uint8_t*)malloc(jp_buf_sz);
-
-    in_frames_jp.reserve(src_info->buffs_num);
-
-    for (int i = 0; i < src_info->buffs_num; i++) {
-        in_frames_jp.emplace(in_frames_jp.end(),
-            // Parameters of InFrame constructor
-            src_info->width, 
-            src_info->height, 
-            src_info->format, 
-            (uint8_t *)buf_cli_recording->tflow_bufs.at(i).start);
-#if CODE_BROWSE
-            InFrameJP x;
-#endif
-    }
+    jpEncOpen(src_info->width, src_info->height, buf_cli_recording->tflow_bufs);
 
 }
 
