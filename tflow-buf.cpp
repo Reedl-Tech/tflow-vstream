@@ -62,6 +62,9 @@ TFlowBuf::TFlowBuf(int enc_fd, enum v4l2_buf_type buf_type, int index, int plane
         this->index = index;
         this->state = BUF_STATE_FREE;
     }
+    aux_data_len = 0;
+    aux_data = nullptr;
+
 }
 
 TFlowBuf::TFlowBuf()
