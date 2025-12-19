@@ -27,6 +27,8 @@ void* TFlowEnc::_EncThread(void* ctx)
 
     m->EncThread();
 
+    // TODO: Notify Parent thread ?
+
     return nullptr;
 }
 
@@ -111,6 +113,10 @@ void TFlowEnc::EncThread()
             int err = errno;
             g_critical("V4l2Driver: poll error received (%d) - %s", errno, strerror(errno));
 
+            if (err == 0) {
+                // Happens when vpuenc started in parallel from gstreamer (by rtsp server)
+                // Can't recover 
+            }
             if (err == EAGAIN) {
             }
             break;
@@ -254,8 +260,9 @@ int TFlowEnc::onOutputReady(TFlowBuf& buf)
     }
 
 #if CODE_BROWSE
-    TFlowUDPVStreamer::onFrameEncoded(buf);
     TFlowWSVStreamer::onFrameEncoded(buf);
+    TFlowUDPVStreamer::onFrameEncoded(buf);
+    TFlowRTSPVStreamer::onFrameEncoded(buf);
 #endif
     return 0;
 }

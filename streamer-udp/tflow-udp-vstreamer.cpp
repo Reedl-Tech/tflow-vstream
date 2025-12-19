@@ -1,3 +1,7 @@
+// !!!! The module build in assumption Encoded stream frame fits to 65kB 
+//       max UDP packet length (65536). The actual encoded frame will be much bigger
+//       Needs to be reworked for standart RTP protocol
+//       "( appsrc name=mysrc ! videoconvert ! x264enc ! rtph264pay name=pay0 pt=96 ! udpsink )");
 #include "../tflow-build-cfg.hpp"
 #include <cassert>
 #include <unistd.h>
@@ -180,14 +184,6 @@ int TFlowUDPVStreamer::onFrameEncoded(TFlowBuf &tflow_buf)
     }
 
 buf_release:
-    // AV: TODO: Reconsider timing - when data actually cloned into network stack?
-    //           sendmsg is non blocking, thus buffer, in theory, might be 
-    //           enqued before it is actually send to udp. 
-    //           Can be solved by:
-    //                a) blocking call; 
-    //                b) data local copy;
-    //                c) using multiple output buffers. <-- most preferred
-    //          
     encoder->enqueueOutputBuffer(tflow_buf);
 
     return 0;
@@ -209,7 +205,7 @@ int TFlowUDPVStreamer::consumeBuffer(TFlowBuf& buf)
 
 TFlowBuf* TFlowUDPVStreamer::getFreeBuffer() 
 {
-    // Application request buffer for feeding
+    // Application requests buffer for feeding
     return encoder ? encoder->getFreeInputBuffer() : nullptr;
 }
 

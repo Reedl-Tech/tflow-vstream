@@ -18,9 +18,7 @@ public:
 
     ~TFlowWsVStreamer();
 
-    TFlowBuf* getFreeBuffer();
-    void fillBuffer(TFlowBuf& buf_enc, const TFlowBuf& buf_in);
-    int consumeBuffer(TFlowBuf& buf);
+    void onFrame(const TFlowBuf& buf_in);
 
     void onConfigValidate(json11::Json::object& j_out_params, TFlowWSStreamerCfg::cfg_ws_streamer *rw_cfg);
     int onConfig(json11::Json::object& j_out_params);
@@ -36,6 +34,10 @@ private:
 
     int restart();  // The same as start,  but without frame configuration change. 
                     // Is used on encoder configuration change.
+
+    TFlowBuf* getFreeBuffer();
+    void fillBuffer(TFlowBuf& buf_enc, const TFlowBuf& buf_in);
+    int consumeBuffer(TFlowBuf& buf);
 
     uint32_t packet_type_key;
     uint32_t packet_type_dlt;

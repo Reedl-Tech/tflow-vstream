@@ -45,6 +45,9 @@ add_executable (${PROJECT_NAME}
     "encoder-v4l2/tflow-v4l2enc.cpp"
     "encoder-v4l2/tflow-v4l2enc.hpp"
     "encoder-v4l2/tflow-v4l2enc-cfg.hpp"
+    "streamer-rtsp/tflow-rtsp-vstreamer.cpp"
+    "streamer-rtsp/tflow-rtsp-vstreamer.hpp"
+    "streamer-rtsp/tflow-rtsp-vstreamer-cfg.hpp"
     "streamer-ws/tflow-ws-vstreamer.cpp"
     "streamer-ws/tflow-ws-vstreamer.hpp"
     "streamer-ws/tflow-ws-vstreamer-cfg.hpp"
@@ -71,6 +74,8 @@ pkg_check_modules(GLIBMM REQUIRED IMPORTED_TARGET
 )
 
 pkg_check_modules(OTHERS REQUIRED IMPORTED_TARGET
+    gstreamer-1.0
+    gstreamer-rtsp-server-1.0
     json11
     libjpeg
 )

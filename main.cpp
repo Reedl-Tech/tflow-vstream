@@ -1,3 +1,5 @@
+// TODO: add configuration for CPU# affinity
+
 #include <thread>
 #include <csignal>
 #include <sys/stat.h>
@@ -84,6 +86,7 @@ int main(int argc, char** argv)
     std::string cfg_fname("/etc/tflow/tflow-vstream-config.json");
     getConfigFilename(argc, argv[1], cfg_fname);
     
+    GMainContext* context2 = g_main_context_default();
     GMainContext *context1 = g_main_context_ref_thread_default();
     GMainContext *context = g_main_context_get_thread_default();
     //GMainContext *context = g_main_context_new();

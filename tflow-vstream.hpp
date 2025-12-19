@@ -14,6 +14,8 @@
 #include "tflow-nav-imu.hpp"
 #include "tflow-ctrl-vstream.hpp"
 #include "tflow-buf-cli.hpp"
+
+#include "streamer-rtsp/tflow-rtsp-vstreamer.hpp"
 #include "streamer-ws/tflow-ws-vstreamer.hpp"
 
 #include "streamer-udp/tflow-udp-vstreamer.hpp"
@@ -56,7 +58,8 @@ public:
     void onSrcReadyRecording(const TFlowBufPck::pck_fd* src_info);
     void onSrcReadyStreaming(const TFlowBufPck::pck_fd* src_info);
 
-    int setStreamingSrc(int src, int en);
+    int setStreamingSrc(TFlowCtrlVStreamUI::VIDEO_SRC src,
+        TFlowCtrlVStreamUI::STREAMING_TYPE type);
     int setRecordingSrc(int src, int en);
 
 
@@ -66,7 +69,8 @@ public:
     GSource* vdump_timeout_src;
 
     TFlowWsVStreamer *ws_streamer;
-    TFlowUDPVStreamer *udp_streamer;
+    TFlowUDPVStreamer* udp_streamer;
+    TFlowRTSPVStreamer* rtsp_streamer;
 
 private:
 
@@ -79,7 +83,7 @@ private:
 
     TFlowCtrlVStream ctrl;
 
-    std::vector<uint8_t*>   in_frames_process;
+    std::vector<uint8_t*> in_frames_process;
 
     std::vector<InFrameJP> in_frames_jp{};
     

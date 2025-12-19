@@ -142,18 +142,29 @@ int TFlowCtrlVStream::cmd_cb_streaming_config(const json11::Json& j_in_params, J
     //dumpFieldFlags(flds, indent);
 
     if (cmd_flds_cfg_streaming.src.flags & FIELD_FLAG::CHANGED ||
-        cmd_flds_cfg_streaming.en.flags & FIELD_FLAG::CHANGED) {
+        cmd_flds_cfg_streaming.type.flags & FIELD_FLAG::CHANGED) {
         app.setStreamingSrc(
-            cmd_flds_cfg_streaming.src.v.num, cmd_flds_cfg_streaming.en.v.num);
+            (TFlowCtrlVStreamUI::VIDEO_SRC)cmd_flds_cfg_streaming.src.v.num,
+            (TFlowCtrlVStreamUI::STREAMING_TYPE)cmd_flds_cfg_streaming.type.v.num);
     }
 
     if (cmd_flds_cfg_streaming.ws_streamer.flags & FIELD_FLAG::CHANGED) {
-        TFlowWSStreamerCfg::cfg_ws_streamer* ws_streamer_rw_cfg = 
-            (TFlowWSStreamerCfg::cfg_ws_streamer*)cmd_flds_cfg_streaming.ws_streamer.v.ref;
+        auto ws_streamer_rw_cfg = (TFlowWSStreamerCfg::cfg_ws_streamer*)
+            cmd_flds_cfg_streaming.ws_streamer.v.ref;
 
         if (app.ws_streamer) {
             app.ws_streamer->onConfigValidate(j_out_params, ws_streamer_rw_cfg);
             app.ws_streamer->onConfig(j_out_params);
+        }
+    }
+
+    if (cmd_flds_cfg_streaming.rtsp_streamer.flags & FIELD_FLAG::CHANGED) {
+        auto rtsp_streamer_rw_cfg = (TFlowRTSPStreamerCfg::cfg_rtsp_streamer*)
+            cmd_flds_cfg_streaming.rtsp_streamer.v.ref;
+
+        if (app.rtsp_streamer) {
+            app.rtsp_streamer->onConfigValidate(j_out_params, rtsp_streamer_rw_cfg);
+            app.rtsp_streamer->onConfig(j_out_params);
         }
     }
 

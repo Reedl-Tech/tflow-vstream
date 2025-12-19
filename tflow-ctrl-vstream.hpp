@@ -12,6 +12,7 @@
 
 #include "streamer-udp/tflow-udp-vstreamer-cfg.hpp"
 #include "streamer-ws/tflow-ws-vstreamer-cfg.hpp"
+#include "streamer-rtsp/tflow-rtsp-vstreamer-cfg.hpp"
 
 using std::placeholders::_1;
 
@@ -53,7 +54,7 @@ public:
         tflow_cmd_field_t   jpeg_quality;
         tflow_cmd_field_t   eomsg;
     } cmd_flds_cfg_recording = {
-        .head = { "recording", CFT_STR, 0, {.str = nullptr} },
+        TFLOW_CMD_HEAD("recording"),
         .en                   = { "rec_en",               CFT_NUM, 0, {.num = 0                           }, &ui_sw_en      },
         .src                  = { "rec_src",              CFT_NUM, 0, {.num = VIDEO_SRC_CAM0              }, &ui_video_src  },
         .path                 = { "rec_path",             CFT_STR, 0, {.c_str = strdup("/home/root/tflow")}, &ui_edit_def   },
@@ -71,17 +72,19 @@ public:
 
     struct cfg_streaming {
         tflow_cmd_field_t   head;
-        tflow_cmd_field_t   en;
+        tflow_cmd_field_t   type;
         tflow_cmd_field_t   src;
         tflow_cmd_field_t   udp_streamer;
         tflow_cmd_field_t   ws_streamer;
+        tflow_cmd_field_t   rtsp_streamer;
         tflow_cmd_field_t   eomsg;
     } cmd_flds_cfg_streaming = {
-        .head          = { "streaming",     CFT_STR, 0, {.str = nullptr} },
-        .en            = { "streaming_en",  CFT_NUM, 0, {.num = 0}, &ui_sw_en  },
-        .src           = { "streaming_src", CFT_NUM, 0, {.num = VIDEO_SRC_PROC }, &ui_video_src },
-        .udp_streamer  = { "udp_streamer",  CFT_REF, 0, {.ref = &tflow_udp_streamer_cfg.cmd_flds_cfg_udp_streamer.head} /* , &ui_group_def */},   
-        .ws_streamer   = { "ws_streamer",   CFT_REF, 0, {.ref = &tflow_ws_streamer_cfg.cmd_flds_cfg_ws_streamer.head  }, &ui_group_def},   
+        TFLOW_CMD_HEAD("streaming"),
+        .type          = { "streaming_type", CFT_NUM, 0, {.num = STREAMING_TYPE_DIS }, &ui_streaming_type },
+        .src           = { "streaming_src",  CFT_NUM, 0, {.num = VIDEO_SRC_PROC }, &ui_video_src },
+        .udp_streamer  = { "udp_streamer",   CFT_REF, 0, {.ref = &tflow_udp_streamer_cfg.cmd_flds_cfg_udp_streamer.head} /* , &ui_group_def */},   
+        .ws_streamer   = { "ws_streamer",    CFT_REF, 0, {.ref = &tflow_ws_streamer_cfg.cmd_flds_cfg_ws_streamer.head  }, &ui_group_def},   
+        .rtsp_streamer = { "rtsp_streamer",  CFT_REF, 0, {.ref = &tflow_rtsp_streamer_cfg.cmd_flds_cfg_rtsp_streamer.head  }, &ui_group_def},   
         TFLOW_CMD_EOMSG
     };
 

@@ -47,6 +47,7 @@ TFlowVStream::TFlowVStream(GMainContext *_context, const std::string cfg_fname) 
     buf_cli_streaming(nullptr),
     ws_streamer(nullptr),
     udp_streamer(nullptr),
+    rtsp_streamer(nullptr),
     context(_context),
     ctrl(*this, cfg_fname)  // Att!: Must be constructed after submodules' pointers initialization
 {
@@ -425,44 +426,31 @@ void TFlowVStream::onFrameStreaming(const TFlowBufPck::pck_consume* msg_consume)
     uint32_t aux_data_len = msg_consume->aux_data_len;
     const uint8_t *aux_data = msg_consume->aux_data;       // This data is from shared packet, thus do not modify!
 
+    assert(msg_consume->buff_index >= 0 && msg_consume->buff_index < buf_cli_streaming->tflow_bufs.size());
+    TFlowBuf& tflow_buf_in = buf_cli_streaming->tflow_bufs.at(msg_consume->buff_index);
+
+    if (rtsp_streamer) {
+        rtsp_streamer->onFrame(tflow_buf_in);
+    }
+
     if (ws_streamer) {      
-        TFlowBuf* ws_streamer_buf = ws_streamer ? ws_streamer->getFreeBuffer() : nullptr;
-
-        if (ws_streamer_buf) {
-
-            assert(msg_consume->buff_index >= 0 && msg_consume->buff_index < buf_cli_streaming->tflow_bufs.size());
-            TFlowBuf &tflow_buf_in = buf_cli_streaming->tflow_bufs.at(msg_consume->buff_index);
-
-            // TODO: implemtent Meta data sending along with encoded frame
-            //       to move dashboard rendering on the host side
-            
-            // VStreamer receives aux data via shared memory
-            // tflow_buf_in.aux_data = msg_consume->aux_data; 
-            // tflow_buf_in.aux_data_len = msg_consume->aux_data_len; 
-
-            ws_streamer->fillBuffer(*ws_streamer_buf, tflow_buf_in);
-            ws_streamer->consumeBuffer(*ws_streamer_buf);
-        }
-        else {
-            static int cnt = 0;
-            g_info("============== can't get free buffer %d =============", cnt++ );
-        }
+        ws_streamer->onFrame(tflow_buf_in);
     }
 
     if (udp_streamer) {      
-        const uint8_t* buff;
-        size_t buff_len;
+        //const uint8_t* buff;
+        //size_t buff_len;
 
-        TFlowBuf* dashboard_buf = udp_streamer ? udp_streamer->getFreeBuffer() : nullptr;
+        //TFlowBuf* dashboard_buf = udp_streamer ? udp_streamer->getFreeBuffer() : nullptr;
 
-        if (dashboard_buf) {
-            memcpy(dashboard_buf->start, buff, buff_len);
-            udp_streamer->consumeBuffer(*dashboard_buf);
-        }
-        else {
-            static int cnt = 0;
-            g_info("============== can't get free buffer %d =============", cnt++ );
-        }
+        //if (dashboard_buf) {
+        //    memcpy(dashboard_buf->start, buff, buff_len);
+        //    udp_streamer->consumeBuffer(*dashboard_buf);
+        //}
+        //else {
+        //    static int cnt = 0;
+        //    g_info("============== can't get free buffer %d =============", cnt++ );
+        //}
     }
 }
 
@@ -603,6 +591,12 @@ void TFlowVStream::onSrcGoneStreaming()
         ws_streamer->stop();
     }
 
+    if (rtsp_streamer) {
+        // TODO: Keep streaming with TV grid or other pattern
+        delete rtsp_streamer;
+        rtsp_streamer = nullptr;
+    }
+
     if (udp_streamer) {
         delete udp_streamer;
         udp_streamer = nullptr;
@@ -661,10 +655,27 @@ void TFlowVStream::onSrcReadyStreaming(const TFlowBufPck::pck_fd* src_info)
         return;
     }
 
-    // TODO: Support both streamers or make them mutally exclusive on build time?
+    const TFlowCtrlVStream::cfg_streaming *cfg = &ctrl.cmd_flds_cfg_streaming;
+
+#if RTSP_STREAMER
+    // TODO: ??? Support both streamers WS and RTSP or make them mutally exclusive on build time ?
+    //   
+    if (cfg->type.v.num == TFlowCtrlVStreamUI::STREAMING_TYPE_RTSP) {
+        // rtsp_streamer check is format changed? force to close session? or resend session config (w x h format)
+        const auto rtsp_streamer_cfg =
+            (TFlowRTSPStreamerCfg::cfg_rtsp_streamer*)cfg->rtsp_streamer.v.ref;
+
+        rtsp_streamer = new TFlowRTSPVStreamer(src_info->width, src_info->height, rtsp_streamer_cfg);
+    }
+#endif
+
 #if WS_STREAMER
 
-    ws_streamer->start(src_info->width, src_info->height, src_info->format);
+    if (cfg->type.v.num == TFlowCtrlVStreamUI::STREAMING_TYPE_WS) {
+        if (ws_streamer) {
+            ws_streamer->start(src_info->width, src_info->height, src_info->format);
+        }
+    }
 
 #elif UDP_STREAMER
     
@@ -677,7 +688,8 @@ void TFlowVStream::onSrcReadyStreaming(const TFlowBufPck::pck_fd* src_info)
 }
 
 
-int TFlowVStream::setStreamingSrc(int src, int en)
+int TFlowVStream::setStreamingSrc(TFlowCtrlVStreamUI::VIDEO_SRC src,
+    TFlowCtrlVStreamUI::STREAMING_TYPE type)
 {
     // Close current stream in any case
     if (buf_cli_streaming) {
@@ -690,21 +702,32 @@ int TFlowVStream::setStreamingSrc(int src, int en)
         ws_streamer = nullptr;
     }
 
-    if (!en) {  // Streaming disabled
+    if (rtsp_streamer) {
+        delete rtsp_streamer;
+        rtsp_streamer = nullptr;
+    }
+
+    if (type == TFlowCtrlVStreamUI::STREAMING_TYPE_DIS) {
         return 0;
     }
 
-    const auto ws_streamer_cfg = 
-        (TFlowWSStreamerCfg::cfg_ws_streamer*)ctrl.cmd_flds_cfg_streaming.ws_streamer.v.ref;
+    if (type == TFlowCtrlVStreamUI::STREAMING_TYPE_WS) {
+        const auto ws_streamer_cfg =
+            (TFlowWSStreamerCfg::cfg_ws_streamer*)ctrl.cmd_flds_cfg_streaming.ws_streamer.v.ref;
 
-    ws_streamer = new TFlowWsVStreamer(ws_streamer_cfg);
+        // WebSocket running even if an input source doesn't exist yet.
+        ws_streamer = new TFlowWsVStreamer(ws_streamer_cfg);
+    }
+    else if (type == TFlowCtrlVStreamUI::STREAMING_TYPE_RTSP) {
+        // RTSP streamer created on "SRC ready" as it depends on frame format,
+        // nothing to do here.
+        // TODO: ?Start streaming TV grid or noisy screen until SRC ready?
+    }
 
-    // Check is the stream realy changed
-    // ???
     const char *srv_name = 
-        (src == TFlowCtrlVStreamUI::VIDEO_SRC::VIDEO_SRC_CAM0) ? "com.reedl.tflow.capture0.buf-server" :
+        (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM0) ? "com.reedl.tflow.capture0.buf-server" :
         //(src == TFlowCtrlVStreamUI::VIDEO_SRC::VIDEO_SRC_CAM1) ? "com.reedl.tflow.capture1.buf-server" :
-        (src == TFlowCtrlVStreamUI::VIDEO_SRC::VIDEO_SRC_PROC) ? "com.reedl.tflow.process.buf-server" : "";
+        (src == TFlowCtrlVStreamUI::VIDEO_SRC_PROC) ? "com.reedl.tflow.process.buf-server" : "";
 
     buf_cli_streaming = new TFlowBufCli(
         context,
@@ -733,8 +756,8 @@ int TFlowVStream::setRecordingSrc(int src, int en)
     }
 
     const char *srv_name = 
-        (src == TFlowCtrlVStreamUI::VIDEO_SRC::VIDEO_SRC_CAM0) ? "com.reedl.tflow.capture0.buf-server" :
-        (src == TFlowCtrlVStreamUI::VIDEO_SRC::VIDEO_SRC_PROC) ? "com.reedl.tflow.process.buf-server" : "";
+        (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM0) ? "com.reedl.tflow.capture0.buf-server" :
+        (src == TFlowCtrlVStreamUI::VIDEO_SRC_PROC) ? "com.reedl.tflow.process.buf-server" : "";
 
     buf_cli_recording = new TFlowBufCli(
         context,

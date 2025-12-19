@@ -274,7 +274,7 @@ TFlowBuf* TFlowWsVStreamer::getFreeBuffer()
     if (!encoder || !encoder->isDriverOutputBuffers())
         return nullptr;
 
-    // Application request buffer for feeding
+    // Application requests buffer for feeding
     return encoder->getFreeInputBuffer();
 }
 
@@ -326,6 +326,30 @@ int TFlowWsVStreamer::start(int _w, int _h, uint32_t _fmt)
     return restart();
 }
 
+void TFlowWsVStreamer::onFrame(const TFlowBuf& buf_in)
+{
+    TFlowBuf* ws_streamer_buf = getFreeBuffer();
+
+    if (ws_streamer_buf) {
+
+        // TODO: implemtent Meta data sending along with encoded frame
+        //       to move dashboard rendering on the host side
+
+        // VStreamer receives aux data via shared memory
+        // tflow_buf_in.aux_data = msg_consume->aux_data; 
+        // tflow_buf_in.aux_data_len = msg_consume->aux_data_len; 
+
+        fillBuffer(*ws_streamer_buf, buf_in);
+        consumeBuffer(*ws_streamer_buf);
+    }
+    else {
+        static int cnt = 0;
+        PRESC(0x1F) {
+            g_info("TFlowWsVStreamer: can't get free buffer %d. ", cnt++);
+        }
+    }
+}
+
 TFlowWsVStreamer::TFlowWsVStreamer(
     const TFlowWSStreamerCfg::cfg_ws_streamer *ws_streamer_cfg)
 {
@@ -346,13 +370,14 @@ TFlowWsVStreamer::TFlowWsVStreamer(
     //       
     pthread_attr_t attr;
 
+    terminate_thread = 0;
+
     pthread_cond_init(&th_cond, nullptr);
     pthread_attr_init(&attr);
 
     int rc = pthread_create(&th, &attr, _thread, this);
     pthread_attr_destroy(&attr);
 
-    terminate_thread = 0;
 }
 
 void TFlowWsVStreamer::stop()

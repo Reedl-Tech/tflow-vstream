@@ -41,6 +41,7 @@
       <RemoteCopyFile Condition="'$(Configuration)|$(Platform)'=='6.6-8dev|ARM64'">true</RemoteCopyFile>
     </ClCompile>
     <ClCompile Include="..\mongoose.c" />
+    <ClCompile Include="..\streamer-rtsp\tflow-rtsp-vstreamer.cpp" />
     <ClCompile Include="..\streamer-udp\tflow-udp-vstreamer-if.cpp" />
     <ClCompile Include="..\streamer-udp\tflow-udp-vstreamer.cpp" />
     <ClCompile Include="..\streamer-ws\tflow-ws-vstreamer.cpp" />
@@ -61,6 +62,8 @@
     <ClInclude Include="..\encoder-v4l2\tflow-v4l2enc-cfg.hpp" />
     <ClInclude Include="..\encoder-v4l2\tflow-v4l2enc.hpp" />
     <ClInclude Include="..\mongoose.h" />
+    <ClInclude Include="..\streamer-rtsp\tflow-rtsp-vstreamer-cfg.hpp" />
+    <ClInclude Include="..\streamer-rtsp\tflow-rtsp-vstreamer.hpp" />
     <ClInclude Include="..\streamer-udp\tflow-udp-vstreamer-cfg.hpp" />
     <ClInclude Include="..\streamer-udp\tflow-udp-vstreamer.hpp" />
     <ClInclude Include="..\streamer-ws\tflow-ws-vstreamer-cfg.hpp" />

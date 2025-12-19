@@ -77,7 +77,7 @@ TFlowBuf::TFlowBuf()
     index = -1;
     length = 0;
     start = MAP_FAILED;
-    mem_type = 1; // don't release memory on desctructor
+    mem_type = 1; // don't release memory on destructor
 
     owners = 0;             // Bit mask of TFlowBufCli. Bit 0 - means buffer is in user space
 

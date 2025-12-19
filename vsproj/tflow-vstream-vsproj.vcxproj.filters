@@ -13,13 +13,13 @@
       <Filter>Shared\tflow-buf</Filter>
     </ClCompile>
     <ClCompile Include="..\streamer-ws\tflow-ws-vstreamer.cpp">
-      <Filter>ws-streamer</Filter>
+      <Filter>streamer-ws</Filter>
     </ClCompile>
     <ClCompile Include="..\streamer-udp\tflow-udp-vstreamer.cpp">
-      <Filter>udp-streamer</Filter>
+      <Filter>streamer-udp</Filter>
     </ClCompile>
     <ClCompile Include="..\streamer-udp\tflow-udp-vstreamer-if.cpp">
-      <Filter>udp-streamer</Filter>
+      <Filter>streamer-udp</Filter>
     </ClCompile>
     <ClCompile Include="..\encoder-v4l2\tflow-v4l2enc.cpp">
       <Filter>encoder-v4l2</Filter>
@@ -27,6 +27,9 @@
     <ClCompile Include="..\mongoose.c" />
     <ClCompile Include="..\tflow-buf.cpp">
       <Filter>Shared\tflow-buf</Filter>
+    </ClCompile>
+    <ClCompile Include="..\streamer-rtsp\tflow-rtsp-vstreamer.cpp">
+      <Filter>streamer-rtsp</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -52,16 +55,16 @@
     <ClInclude Include="..\tflow-ctrl-srv-vstream.hpp" />
     <ClInclude Include="..\tflow-ctrl-vstream-ui.hpp" />
     <ClInclude Include="..\streamer-ws\tflow-ws-vstreamer.hpp">
-      <Filter>ws-streamer</Filter>
+      <Filter>streamer-ws</Filter>
     </ClInclude>
     <ClInclude Include="..\streamer-ws\tflow-ws-vstreamer-cfg.hpp">
-      <Filter>ws-streamer</Filter>
+      <Filter>streamer-ws</Filter>
     </ClInclude>
     <ClInclude Include="..\streamer-udp\tflow-udp-vstreamer.hpp">
-      <Filter>udp-streamer</Filter>
+      <Filter>streamer-udp</Filter>
     </ClInclude>
     <ClInclude Include="..\streamer-udp\tflow-udp-vstreamer-cfg.hpp">
-      <Filter>udp-streamer</Filter>
+      <Filter>streamer-udp</Filter>
     </ClInclude>
     <ClInclude Include="..\encoder-v4l2\tflow-v4l2enc.hpp">
       <Filter>encoder-v4l2</Filter>
@@ -70,6 +73,12 @@
       <Filter>encoder-v4l2</Filter>
     </ClInclude>
     <ClInclude Include="..\mongoose.h" />
+    <ClInclude Include="..\streamer-rtsp\tflow-rtsp-vstreamer.hpp">
+      <Filter>streamer-rtsp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\streamer-rtsp\tflow-rtsp-vstreamer-cfg.hpp">
+      <Filter>streamer-rtsp</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\CMakeLists.txt" />
@@ -81,14 +90,17 @@
     <Filter Include="Shared\tflow-buf">
       <UniqueIdentifier>{cecba52e-73b1-42c6-985a-b4e7fc646cfd}</UniqueIdentifier>
     </Filter>
-    <Filter Include="udp-streamer">
-      <UniqueIdentifier>{1861ed4f-52b6-4ef0-b5b5-f89feb6d426d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ws-streamer">
-      <UniqueIdentifier>{f564e2f8-2ae7-4b6f-9f6f-b8ae6ae9c5c0}</UniqueIdentifier>
-    </Filter>
     <Filter Include="encoder-v4l2">
       <UniqueIdentifier>{d0ddac30-281b-418a-9d9d-d842c20e087e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="streamer-udp">
+      <UniqueIdentifier>{1861ed4f-52b6-4ef0-b5b5-f89feb6d426d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="streamer-ws">
+      <UniqueIdentifier>{f564e2f8-2ae7-4b6f-9f6f-b8ae6ae9c5c0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="streamer-rtsp">
+      <UniqueIdentifier>{379fa8f3-6054-46ea-862a-bc44be327aed}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
