@@ -187,6 +187,9 @@ int TFlowRTSPVStreamer::StartRTSP()
     factory = gst_rtsp_media_factory_new();
     gst_object_ref(factory);    // Will be cleaned on Stop()
 
+    // Use default port - 8554
+    // g_object_set (server, "service", "554", NULL);
+
     if (cfg->enc_type.v.num == TFlowRTSPStreamerUI::ENC_TYPE_H265) {
         gst_rtsp_media_factory_set_launch(factory,
             "( appsrc  name=vstreamer  ! vpuenc_hevc ! rtph265pay name=pay0 pt=96 )");    // GST OK. 16% CPU load @ 50FPS

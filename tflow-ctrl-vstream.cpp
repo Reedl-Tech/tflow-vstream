@@ -85,7 +85,7 @@ void TFlowCtrlSrvVStream::onTFlowCtrlMsg(const std::string &cmd,
 void TFlowCtrlVStream::getSignResponse(json11::Json::object &j_out_params)
 {
     j_out_params.emplace("state", "OK");
-    j_out_params.emplace("version", "v0");  // TODO: replace for version from git or signature hash or both?
+    j_out_params.emplace("version", "v1.1");  // TODO: replace for version from git or signature hash or both?
     j_out_params.emplace("config_id", config_id);  
 }
 
@@ -102,7 +102,7 @@ void TFlowCtrlVStream::getStreamingUISignResponse(json11::Json::object &j_out_pa
 
 int TFlowCtrlVStream::cmd_cb_streaming_version(const json11::Json& j_in_params, Json::object& j_out_params)
 {
-    j_out_params.emplace("version", "v0");
+    j_out_params.emplace("version", "v1.1");
     return 0;
 }
 
@@ -191,7 +191,7 @@ void TFlowCtrlVStream::getRecordingUISignResponse(json11::Json::object &j_out_pa
 
 int TFlowCtrlVStream::cmd_cb_recording_version(const json11::Json& j_in_params, Json::object& j_out_params)
 {
-    j_out_params.emplace("version", "v0");
+    j_out_params.emplace("version", "v1.1");
     return 0;
 }
 

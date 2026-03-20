@@ -188,7 +188,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='6.6-8dev|ARM64'">
     <PostBuildEvent>
-      <Command>pscp $(OutDir)tflow-vstream root@192.168.2.2:/root</Command>
+      <Command>pscp $(OutDir)tflow-vstream root@192.168.2.77:/root</Command>
     </PostBuildEvent>
     <ClCompile>
       <CppLanguageStandard>c++20</CppLanguageStandard>

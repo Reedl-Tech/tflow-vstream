@@ -1,20 +1,21 @@
 #include "tflow-build-cfg.hpp"
 
+#include <cstring>
+#include <cassert>
+
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
-#include <cassert>
 #include <linux/videodev2.h> //V4L2 stuff
 
-#include <glib-unix.h>
-
+#include "tflow-glib.hpp"
 #include "tflow-common.hpp"
 #include "tflow-buf.hpp"
 #include "tflow-buf-pck.hpp"
 
 TFlowBuf::~TFlowBuf()
 {
-    // VStream do mmap for all buffers at once but not for a simgle buffer 
+    // VStream do mmap for all buffers at once but not for a single buffer 
     // And v4l2_buf isn't in use
     
     if (start != MAP_FAILED) {

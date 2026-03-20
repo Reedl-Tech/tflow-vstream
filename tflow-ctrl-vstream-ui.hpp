@@ -26,7 +26,7 @@ public:
         .label = "Streaming type",
         .label_pos = 0,
         .type = TFlowCtrlUI::UICTRL_TYPE::DROPDOWN,
-        .size = 10,
+        .size = 8,
         .dropdown = {.val = (const char**)&streaming_type_entries}
     };
 
@@ -51,6 +51,7 @@ public:
         .label = "Video source",
         .label_pos = 0,
         .type = TFlowCtrlUI::UICTRL_TYPE::DROPDOWN,
+        .size = 6,
         .dropdown = {.val = (const char **)&video_src_entries}
     };
 
