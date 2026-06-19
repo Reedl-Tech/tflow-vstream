@@ -4,7 +4,6 @@
     <ClCompile Include="..\main.cpp" />
     <ClCompile Include="..\tflow-ctrl-cli-port.cpp" />
     <ClCompile Include="..\tflow-ctrl-srv.cpp" />
-    <ClCompile Include="..\tflow-nav-imu.cpp" />
     <ClCompile Include="..\tflow-perfmon.cpp" />
     <ClCompile Include="..\tflow-vstream.cpp" />
     <ClCompile Include="..\tflow-ctrl-vstream.cpp" />
@@ -37,7 +36,6 @@
     <ClInclude Include="..\tflow-common.hpp" />
     <ClInclude Include="..\tflow-ctrl-cli-port.hpp" />
     <ClInclude Include="..\tflow-ctrl-srv.hpp" />
-    <ClInclude Include="..\tflow-nav-imu.hpp" />
     <ClInclude Include="..\tflow-perfmon.hpp" />
     <ClInclude Include="..\tflow-vstream.hpp" />
     <ClInclude Include="..\tflow-ctrl-vstream.hpp" />
@@ -79,6 +77,7 @@
     <ClInclude Include="..\streamer-rtsp\tflow-rtsp-vstreamer-cfg.hpp">
       <Filter>streamer-rtsp</Filter>
     </ClInclude>
+    <ClInclude Include="..\tflow-glib.hpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\CMakeLists.txt" />

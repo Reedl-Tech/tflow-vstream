@@ -4,9 +4,10 @@
 #include <poll.h>
 #include <thread>
 
-#include <glib-unix.h>
-
 #include <json11.hpp>
+
+#include "../tflow-common.hpp"
+#include "../tflow-glib.hpp"
 
 #include "../encoder-v4l2/tflow-v4l2enc.hpp"
 #include "tflow-ws-vstreamer.hpp"
@@ -90,7 +91,7 @@ static void _mg_ws_mask(struct mg_connection *c, size_t len) {
 
 void TFlowWsVStreamer::wakeup(struct mg_connection* c, int enc_buf_idx)
 {
-    assert(enc_buf_idx < encoder->output_bufs.size());
+    assert(enc_buf_idx >= 0 && enc_buf_idx < encoder->output_bufs.size());
     TFlowBuf &tflow_buf = encoder->output_bufs[enc_buf_idx];
 
     assert(tflow_buf.state == TFlowBuf::BUF_STATE_APP);
@@ -241,7 +242,6 @@ void TFlowWsVStreamer::fillBuffer(TFlowBuf& buf_enc, const TFlowBuf& buf_in)
         memcpy(buf_enc.start, data_buff, data_buff_len);
     }
     else if (in_frame_fmt == V4L2_PIX_FMT_ABGR32) {
-        // Streamer uses ABGR as an input format
         memcpy(buf_enc.start, data_buff, data_buff_len);
     }
     else if (in_frame_fmt == V4L2_PIX_FMT_GREY) {
@@ -271,8 +271,10 @@ int TFlowWsVStreamer::consumeBuffer(TFlowBuf& buf)
 TFlowBuf* TFlowWsVStreamer::getFreeBuffer() 
 {
     // Do not provide input buffer if there is no available output buffers
-    if (!encoder || !encoder->isDriverOutputBuffers())
+    if (!encoder || !encoder->isDriverOutputBuffers()) {
+        g_critical("=== No output buffers === ");
         return nullptr;
+    }
 
     // Application requests buffer for feeding
     return encoder->getFreeInputBuffer();
@@ -344,7 +346,7 @@ void TFlowWsVStreamer::onFrame(const TFlowBuf& buf_in)
     }
     else {
         static int cnt = 0;
-        PRESC(0x1F) {
+        PRESC(0x3F) {
             g_info("TFlowWsVStreamer: can't get free buffer %d. ", cnt++);
         }
     }

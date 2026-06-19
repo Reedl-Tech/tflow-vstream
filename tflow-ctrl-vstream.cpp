@@ -15,8 +15,6 @@ static const char *raw_cfg_default =  R"(
             "path"                 : "/home/root/tflow-vdump", 
             "suffix_ts_start"      : "-%F--%H-%M",
             "suffix_ts_stop"       : "--%H-%M",
-            "suffix_mode"          : "%s",
-            "dump_disarmed"        : 1,
             "split_on_mode_change" : 1,
             "split_size_mb"        : 400,
             "split_time_sec"       : 1200,

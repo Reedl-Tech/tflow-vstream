@@ -45,8 +45,6 @@ public:
         tflow_cmd_field_t   path;
         tflow_cmd_field_t   suffix_ts_start;           
         tflow_cmd_field_t   suffix_ts_stop;           
-        tflow_cmd_field_t   suffix_mode;         
-        tflow_cmd_field_t   dump_disarmed;       
         tflow_cmd_field_t   split_on_mode_change;
         tflow_cmd_field_t   split_size_mb;       
         tflow_cmd_field_t   split_time_sec;
@@ -60,8 +58,6 @@ public:
         .path                 = { "rec_path",             CFT_STR, 0, {.c_str = strdup("/home/root/tflow")}, &ui_edit_def   },
         .suffix_ts_start      = { "suffix_ts_start",      CFT_STR, 0, {.c_str = strdup("-%F--%H-%M")      }, &ui_edit_def   },
         .suffix_ts_stop       = { "suffix_ts_stop",       CFT_STR, 0, {.c_str = strdup("--%H-%M")         }, &ui_edit_def   },
-        .suffix_mode          = { "suffix_mode",          CFT_NUM, 0, {.num = 0                           }, &ui_switch_def },
-        .dump_disarmed        = { "dump_disarmed",        CFT_NUM, 0, {.num = 0                           }, &ui_switch_def },
         .split_on_mode_change = { "split_on_mode_change", CFT_NUM, 0, {.num = 0                           }, &ui_switch_def },
         .split_size_mb        = { "split_size_mb",        CFT_NUM, 0, {.num = 0                           }, &ui_edit_def   },
         .split_time_sec       = { "split_time_sec",       CFT_NUM, 0, {.num = 0                           }, &ui_edit_def   },

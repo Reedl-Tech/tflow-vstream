@@ -19,12 +19,12 @@ class TFlowBufCli {
 public:
     TFlowBufCli(
         GMainContext* app_context,
-        const char* _cli_name, const char* _srv_name,
-        std::function<void(const TFlowBufPck::pck_consume* msg_consume)> app_onFrame,
-        std::function<void(const TFlowBufPck::pck_fd* src_info)> app_onSrcReady,
-        std::function<void()> app_onSrcGone,
-        std::function<void()> app_onConnect,
-        std::function<void()> app_onDisconnect);
+        const char* _cli_name, const char* _srv_name, int _src_id,
+        std::function<void(int src_id, const TFlowBufPck::pck_consume* msg_consume)> app_onFrame,
+        std::function<void(int src_id, const TFlowBufPck::pck_src_info* src_info)> app_onSrcReady,
+        std::function<void(int src_id)> app_onSrcGone,
+        std::function<void(int src_id)> app_onConnect,
+        std::function<void(int src_id)> app_onDisconnect);
 
     ~TFlowBufCli();
     
@@ -54,11 +54,11 @@ public:
 
     std::vector<TFlowBuf> tflow_bufs;
 
-    std::function<void(const TFlowBufPck::pck_consume* msg)> app_onFrame;
-    std::function<void(const TFlowBufPck::pck_fd* src_info)> app_onSrcReady;
-    std::function<void()> app_onSrcGone;
-    std::function<void()> app_onConnect;
-    std::function<void()> app_onDisconnect;
+    std::function<void(int src_id, const TFlowBufPck::pck_consume* msg)> app_onFrame;
+    std::function<void(int src_id, const TFlowBufPck::pck_src_info* src_info)> app_onSrcReady;
+    std::function<void(int src_id)> app_onSrcGone;
+    std::function<void(int src_id)> app_onConnect;
+    std::function<void(int src_id)> app_onDisconnect;
 
 private:
 
@@ -73,12 +73,14 @@ private:
     const std::string srv_name;
     const std::string cli_name;
 
+    int src_id;
+
     struct timespec last_send_ts;
     struct timespec last_conn_check_ts;
 
-    int onSrcFD(TFlowBufPck::pck_fd* msg, int cam_fd);
-    int onSrcFDShm(TFlowBufPck::pck_fd* msg_src_info, int shm_fd);
-    int onSrcFDCam(TFlowBufPck::pck_fd* msg_src_info, int cam_fd);
+    int onSrcFD(TFlowBufPck::pck_src_info* msg, int cam_fd);
+    int onSrcFDShm(TFlowBufPck::pck_src_info* msg_src_info, int shm_fd);
+    int onSrcFDCam(TFlowBufPck::pck_src_info* msg_src_info, int cam_fd);
     int onConsume(const TFlowBufPck::pck_consume* msg);
 
 };

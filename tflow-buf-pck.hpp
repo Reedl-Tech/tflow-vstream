@@ -64,7 +64,7 @@ public:
         struct pck_hdr hdr;
     };
 
-    struct pck_fd {
+    struct pck_src_info {
         CONVERSION_TO_PCK;
         struct pck_hdr hdr;
         int buffs_num;
@@ -96,7 +96,7 @@ public:
         struct pck_hdr          hdr;
         struct pck_sign         sign;
         struct pck_ping         ping;
-        struct pck_fd           fd;
+        struct pck_src_info     src_info;
         struct pck_consume      consume;
         struct pck_redeem       redeem;
         struct pck_buff_info    buff_info;

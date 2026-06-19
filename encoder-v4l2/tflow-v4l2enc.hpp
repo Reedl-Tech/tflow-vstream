@@ -81,7 +81,6 @@ public:
     struct v4l2_plane dqbuf_in_plane[8];
 
     // =====================
-
     static constexpr int bufs_num = 2;  // In assumption number of output and input buffers are equal
 
     std::vector<TFlowBuf> input_bufs;

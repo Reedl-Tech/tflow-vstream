@@ -30,17 +30,15 @@ int TFlowBufCli::onConsume(const TFlowBufPck::pck_consume* msg)
     // Sanity check for buffer index
     assert(msg->buff_index >= 0 && msg->buff_index < tflow_bufs.size());
 
-#if 1
-    {
-        static int presc = 0;
-        if ((++presc & 0xFF) == 0) g_warning("Processed %d frames", presc);
+    PRESC(0xFF){
+        static int cnt = 0;
+        g_info("Processed %d frames", cnt++);
     }
-#endif    
 
     return 0;
 }
 
-int TFlowBufCli::onSrcFDShm(TFlowBufPck::pck_fd* msg_src_info, int shm_fd)
+int TFlowBufCli::onSrcFDShm(TFlowBufPck::pck_src_info* msg_src_info, int shm_fd)
 {
     /*
      * Get total memory size
@@ -158,7 +156,7 @@ on_shm_err:
     return -1;
 }
 
-int TFlowBufCli::onSrcFDCam(TFlowBufPck::pck_fd* msg, int cam_fd)
+int TFlowBufCli::onSrcFDCam(TFlowBufPck::pck_src_info* msg, int cam_fd)
 {
     tflow_bufs.reserve(msg->buffs_num);
 
@@ -172,7 +170,7 @@ int TFlowBufCli::onSrcFDCam(TFlowBufPck::pck_fd* msg, int cam_fd)
     return 0;
 }
 
-int TFlowBufCli::onSrcFD(TFlowBufPck::pck_fd* msg_src_info, int src_fd)
+int TFlowBufCli::onSrcFD(TFlowBufPck::pck_src_info* msg_src_info, int src_fd)
 {
     this->cam_fd = src_fd;
 
@@ -256,14 +254,14 @@ int TFlowBufCli::onMsg()
 
         struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msg);
         int cam_fd = *(int*)CMSG_DATA(cmsg);
-        TFlowBufPck::pck_fd *pck_src_info = (TFlowBufPck::pck_fd*)&sp_pck->d;
+        TFlowBufPck::pck_src_info *pck_src_info = (TFlowBufPck::pck_src_info*)&sp_pck->d;
 
         if (0 == onSrcFD(pck_src_info, cam_fd)) {
 
-            if (app_onSrcReady) app_onSrcReady(pck_src_info);
+            if (app_onSrcReady) app_onSrcReady(src_id, pck_src_info);
 #if CODE_BROWSE
-            TFlowVStream::onSrcReadyStreaming(const TFlowBufPck::pck_fd* pck_src_info);
-            TFlowVStream::onSrcReadyRecording(const TFlowBufPck::pck_fd* pck_src_info);
+            TFlowVStream::onSrcReadyStreaming(const TFlowBufPck::pck_src_info* pck_src_info);
+            TFlowVStream::onSrcReadyRecording(const TFlowBufPck::pck_src_info* pck_src_info);
 #endif
             // Request initial frame
             sendRedeem(-1);
@@ -281,7 +279,7 @@ int TFlowBufCli::onMsg()
 		pending_buf_request--;
 
         onConsume(msg_consume);      // Nothing todo here. Update statistics?
-        if (app_onFrame) app_onFrame(msg_consume);
+        if (app_onFrame) app_onFrame(src_id, msg_consume);
 #if CODE_BROWSE
         TFlowVStream::onFrameStreaming(msg_consume);
         TFlowVStream::onFrameRecording(msg_consume);
@@ -294,8 +292,10 @@ int TFlowBufCli::onMsg()
         if (pending_buf_request == 0) {
             // The packet was consumed and held by a consumer and no more 
             // pending requests left, so send additional one explicitly.
-            sendRedeem(-1);
-        }
+            // AV:=== should never hit here as packets not held by encoder, 
+            //        but a content is copied instead.
+            assert(0);
+            sendRedeem(-1);        }
         break;
     }
     case TFlowBufPck::TFLOWBUF_MSG_PING:
@@ -312,14 +312,14 @@ int TFlowBufCli::onMsg()
 
 TFlowBufCli::TFlowBufCli(
     GMainContext* app_context,
-    const char* _cli_name, const char* _srv_name,
-    std::function<void(const TFlowBufPck::pck_consume* msg_consume)> _app_onFrame,
-    std::function<void(const TFlowBufPck::pck_fd* src_info)> _app_onSrcReady,
-    std::function<void()> _app_onSrcGone,
-    std::function<void()> _app_onConnect, 
-    std::function<void()> _app_onDisconnect) 
+    const char* _cli_name, const char* _srv_name, int _src_id,
+    std::function<void(int src_id, const TFlowBufPck::pck_consume* msg_consume)> _app_onFrame,
+    std::function<void(int src_id, const TFlowBufPck::pck_src_info* src_info)> _app_onSrcReady,
+    std::function<void(int src_id)> _app_onSrcGone,
+    std::function<void(int src_id)> _app_onConnect, 
+    std::function<void(int src_id)> _app_onDisconnect) 
     :
-    cli_name(_cli_name), srv_name(_srv_name), 
+    cli_name(_cli_name), srv_name(_srv_name), src_id(_src_id),
     app_onFrame(_app_onFrame),
     app_onSrcReady(_app_onSrcReady),
     app_onSrcGone(_app_onSrcGone),
@@ -420,8 +420,7 @@ int TFlowBufCli::sendMsg(TFlowBufPck::pck &msg, int msg_id, int msg_custom_len =
     }
 
     if (msg_id > TFlowBufPck::TFLOWBUF_MSG_CUSTOM_) {
-        static int presc = 0;
-        if ( (presc++ & 0xFF) == 0 ) {
+        PRESC(0xFF) {
             g_warning("TFlowBufCli: Msg sent [%s] (%d) #%d", comment,
                 msg.hdr.id, msg.hdr.seq);
         }
@@ -471,7 +470,7 @@ void TFlowBufCli::Disconnect()
 {
 
     if (app_onSrcGone) {
-        app_onSrcGone();
+        app_onSrcGone(src_id);
 #if CODE_BROWSE
         TFlowVStream::onSrcGoneRecording();
         TFlowVStream::onSrcGoneStreaming();
@@ -479,7 +478,7 @@ void TFlowBufCli::Disconnect()
     }
 
     if (app_onDisconnect) {
-        app_onDisconnect();
+        app_onDisconnect(src_id);
 #if CODE_BROWSE
             TFlowVStream::onDisconnect();
 #endif
@@ -537,8 +536,7 @@ int TFlowBufCli::Connect()
     rc = connect(sck_fd, (const struct sockaddr*)&sock_addr, sck_len);
 
     if (rc == -1) {
-        static int presc = 0;
-        if ((++presc & 0x07) == 0) {
+        PRESC(0x07) {
             g_warning("TFlowBufCli: Can't connect to the server %s (%d) - %s",
                 srv_name.c_str(), errno, strerror(errno));
         }
@@ -605,17 +603,7 @@ void TFlowBufCli::onIdle(const struct timespec &now_ts)
         }
         else {
             sck_state_flag.v = Flag::SET;
-            /* Note: Using FIFO Streamer. 
-             *       In case of Streamer reuse existing fifo for
-             *       different Tflow Capture connection (for ex. Capture was
-             *       closed and reopened), the gstreamer at another fifo's end
-             *       generates video with delay >1sec. Therefore, the gstreamer
-             *       need to be restarted. Closing TFlowStreamer will close
-             *       gstreamer if active.
-             * TODO: replace with Glib message/event to APP
-             */
-            if (app_onConnect) app_onConnect();
-
+            if (app_onConnect) app_onConnect(src_id);
             sendSignature();
         }
         return;

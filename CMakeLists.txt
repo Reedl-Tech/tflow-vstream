@@ -38,8 +38,6 @@ add_executable (${PROJECT_NAME}
     "tflow-ctrl.hpp"
     "tflow-perfmon.cpp"
     "tflow-perfmon.hpp"
-    "tflow-nav-imu.cpp"
-    "tflow-nav-imu.hpp"
     "mongoose.c"
     "mongoose.h"
     "encoder-v4l2/tflow-v4l2enc.cpp"

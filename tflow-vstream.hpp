@@ -8,10 +8,8 @@
 #include <jpeglib.h>
 #include <jerror.h>
 
-#define CLEAR(x) memset(&(x), 0, sizeof(x))
-
 #include "tflow-common.hpp"
-#include "tflow-nav-imu.hpp"
+
 #include "tflow-ctrl-vstream.hpp"
 #include "tflow-buf-cli.hpp"
 
@@ -34,6 +32,20 @@ public:
     std::vector<JSAMPROW> jp_rows;
 };
 
+class TFlowJPEnc {
+public:
+    TFlowJPEnc(int width, int height, const std::vector<TFlowBuf> &bufs);
+    ~TFlowJPEnc();
+    const InFrameJP& jpEncode(int buff_idx, int qlty, unsigned char **jp_out_buf, long *jp_out_buf_sz);
+
+    std::vector<InFrameJP> in_frames_jp;
+
+    struct jpeg_compress_struct jp_cinfo;
+    struct jpeg_error_mgr jp_err;
+    unsigned char *jp_buf;
+    unsigned long jp_buf_sz;
+
+};
 
 class TFlowVStream {
 public:
@@ -46,22 +58,25 @@ public:
     void AttachIdle();
     void OnIdle();
 
-    TFlowBufCli *buf_cli_recording;
+    TFlowBufCli *buf_cli_recording_cam0;
+    TFlowBufCli *buf_cli_recording_cam1;
     TFlowBufCli *buf_cli_streaming;
 
-    void onConnect();
-    void onDisconnect();
-    void onFrameStreaming(const TFlowBufPck::pck_consume* msg_consume);
-    void onFrameRecording(const TFlowBufPck::pck_consume* msg_consume);
-    void onSrcGoneRecording();
-    void onSrcGoneStreaming();
-    void onSrcReadyRecording(const TFlowBufPck::pck_fd* src_info);
-    void onSrcReadyStreaming(const TFlowBufPck::pck_fd* src_info);
+    void onConnect(int src_id);
+    void onDisconnect(int src_id);
+
+    void onSrcGoneStreaming (int src_id);
+    void onSrcReadyStreaming(int src_id, const TFlowBufPck::pck_src_info* src_info);
+    void onFrameStreaming   (int src_id, const TFlowBufPck::pck_consume* msg_consume);
+    
+    void onSrcGoneRecording (int src_id);
+    void onFrameRecording   (int src_id, const TFlowBufPck::pck_consume* msg_consume);
+    void onSrcReadyRecording(int src_id, const TFlowBufPck::pck_src_info* src_info);
 
     int setStreamingSrc(TFlowCtrlVStreamUI::VIDEO_SRC src,
         TFlowCtrlVStreamUI::STREAMING_TYPE type);
-    int setRecordingSrc(int src, int en);
 
+    int setRecordingSrc(int src, int en);
 
     int forced_split;   // Set upon vdump timer expiration or 
                         // upon reaches the maximum size or file write error.
@@ -78,25 +93,18 @@ private:
     void fileSplit();
     void fileClose(const struct tm* tm_info = nullptr);
     void fileCreateDir(const gchar* file_path);
-    void jpEncClose();
-    int  jpEncOpen(int width, int height, const std::vector<TFlowBuf> &bufs);
 
     TFlowCtrlVStream ctrl;
 
     std::vector<uint8_t*> in_frames_process;
 
-    std::vector<InFrameJP> in_frames_jp{};
-    
-    struct jpeg_compress_struct jp_cinfo;
-    struct jpeg_error_mgr jp_err;
-    unsigned char *jp_buf;
-    unsigned long jp_buf_sz;
+    TFlowJPEnc *jp_enc_cam0;
+    TFlowJPEnc *jp_enc_cam1;
 
     FILE  *mjpeg_file = nullptr;
     std::string mjpeg_filename;
     ssize_t mjpeg_file_size;
 
-    TFlowImu imu;
     int mode_split_countdown;
     time_t split_last_ts;
 

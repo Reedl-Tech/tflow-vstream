@@ -49,7 +49,6 @@
     <ClCompile Include="..\tflow-buf.cpp" />
     <ClCompile Include="..\tflow-ctrl-cli-port.cpp" />
     <ClCompile Include="..\tflow-ctrl-srv.cpp" />
-    <ClCompile Include="..\tflow-nav-imu.cpp" />
     <ClCompile Include="..\tflow-perfmon.cpp" />
     <ClCompile Include="..\tflow-vstream.cpp" />
     <ClCompile Include="..\tflow-ctrl-vstream.cpp" />
@@ -77,7 +76,7 @@
     <ClInclude Include="..\tflow-ctrl-srv-vstream.hpp" />
     <ClInclude Include="..\tflow-ctrl-srv.hpp" />
     <ClInclude Include="..\tflow-ctrl-vstream-ui.hpp" />
-    <ClInclude Include="..\tflow-nav-imu.hpp" />
+    <ClInclude Include="..\tflow-glib.hpp" />
     <ClInclude Include="..\tflow-perfmon.hpp" />
     <ClInclude Include="..\tflow-vstream.hpp" />
     <ClInclude Include="..\tflow-ctrl-vstream.hpp" />

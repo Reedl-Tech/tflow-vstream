@@ -43,8 +43,11 @@ InFrameJP::InFrameJP(uint32_t width, uint32_t height, uint32_t format, uint8_t* 
 }
 
 TFlowVStream::TFlowVStream(GMainContext *_context, const std::string cfg_fname) :
-    buf_cli_recording(nullptr),
+    buf_cli_recording_cam0(nullptr),
+    buf_cli_recording_cam1(nullptr),
     buf_cli_streaming(nullptr),
+    jp_enc_cam0(nullptr),
+    jp_enc_cam1(nullptr),
     ws_streamer(nullptr),
     udp_streamer(nullptr),
     rtsp_streamer(nullptr),
@@ -53,11 +56,7 @@ TFlowVStream::TFlowVStream(GMainContext *_context, const std::string cfg_fname) 
 {
    
     main_loop = g_main_loop_new(context, false);
-    
-    jp_buf = nullptr;
-    jp_buf_sz = 0;
-    CLEAR(jp_cinfo);
-
+   
     mjpeg_file_size = 0;
 
     recording_total_size = -1;          // Unknown
@@ -69,10 +68,23 @@ TFlowVStream::TFlowVStream(GMainContext *_context, const std::string cfg_fname) 
 
 TFlowVStream::~TFlowVStream()
 {
-    if (ws_streamer) delete ws_streamer;
+    if (ws_streamer) {
+        delete ws_streamer;
+        ws_streamer = nullptr;
+    }
 
-    if (buf_cli_recording) delete buf_cli_recording;
-    if (buf_cli_streaming) delete buf_cli_streaming;
+    if (buf_cli_recording_cam0) {
+        delete buf_cli_recording_cam0;
+        buf_cli_recording_cam0 = nullptr;
+    }
+    if (buf_cli_recording_cam1) {
+        delete buf_cli_recording_cam1;
+        buf_cli_recording_cam1 = nullptr;
+    }
+    if (buf_cli_streaming) {
+        delete buf_cli_streaming;
+        buf_cli_streaming = nullptr;
+    }
 
     // Finalize the vdump file if active
     fileClose();
@@ -83,8 +95,7 @@ TFlowVStream::~TFlowVStream()
     g_main_context_pop_thread_default(context);
     g_main_context_unref(context);
     context = NULL;
-
-    jpEncClose();
+    
 }
 
 static gboolean tflow_vstream_on_vdump_timer(gpointer data)
@@ -188,8 +199,11 @@ void TFlowVStream::OnIdle()
 
     clock_gettime(CLOCK_MONOTONIC, &now_ts);
 
-    if (buf_cli_recording) {
-        buf_cli_recording->onIdle(now_ts);
+    if (buf_cli_recording_cam0) {
+        buf_cli_recording_cam0->onIdle(now_ts);
+    }
+    if (buf_cli_recording_cam1) {
+        buf_cli_recording_cam1->onIdle(now_ts);
     }
 
     if (buf_cli_streaming) {
@@ -212,49 +226,18 @@ void TFlowVStream::AttachIdle()
 
 int TFlowVStream::isDumpRequired(const uint8_t* aux_data, size_t aux_data_len)
 {
-    /* 
-     * By default dump is enabled and sometimes, if configured, can be disabled
-     * for some case. For instance - don't dump video while disarmed.
-     */
-    
-    // !!!!!!!!!! remove me when mounted !!!!!!!!!!
-    // imu.mode = TFlowImu::IMU_MODE::DISARMED;
-
-    TFlowImu::IMU_MODE mode_prev = imu.mode;
-
-    // No imu data - just dump 
-    if (0 == aux_data_len) return 1;
-
-    // In case of error of unknown IMU format let's Dump anyway,
-    // but don't check IMU mode (copter/disarmed)
-    imu.getIMU(aux_data, aux_data_len);
-    if (!imu.is_valid) return 1;
-
-    // !!!!!!!!!! remove me when mounted !!!!!!!!!!
-    // imu.mode = TFlowImu::IMU_MODE::DISARMED;
-
-    // Normlly, Disarmed, Copter or Plane mode should be debugged separately.
-    // Thus, lets split dump into several files for different modes.
-    if (mode_prev != imu.mode) {
-        forced_split = 1;
-        return 1;
-    }
-
-    // By default don't dump if disarmed
-    if (imu.mode == TFlowImu::IMU_MODE::DISARMED && 
-        ctrl.cmd_flds_cfg_recording.dump_disarmed.v.num == 0) { 
-        return 0;
-    }
 
     return 1;
 }
 
-int TFlowVStream::jpEncOpen(int src_width, int src_height, const std::vector<TFlowBuf> &bufs)
+TFlowJPEnc::TFlowJPEnc(int src_width, int src_height, const std::vector<TFlowBuf> &bufs)
 {
     jp_buf = nullptr;
     jp_buf_sz = 0;
 
     CLEAR(jp_cinfo);
+    CLEAR(jp_err);
+
     jp_cinfo.err = jpeg_std_error(&jp_err);
     jpeg_create_compress(&jp_cinfo);
 
@@ -281,11 +264,9 @@ int TFlowVStream::jpEncOpen(int src_width, int src_height, const std::vector<TFl
             InFrameJP x;
 #endif
     }
-
-    return 0;
 }
 
-void TFlowVStream::jpEncClose()
+TFlowJPEnc::~TFlowJPEnc()
 {
     in_frames_jp.clear();
 
@@ -295,6 +276,59 @@ void TFlowVStream::jpEncClose()
     }
 
     jpeg_destroy_compress(&jp_cinfo);
+}
+
+const InFrameJP &TFlowJPEnc::jpEncode(int buff_idx, int qlty,
+    unsigned char **jp_out_buf, long *jp_out_buf_sz)
+{
+#if 0
+    static int g_dump_raw_img = 0;
+
+    if (g_dump_raw_img) {
+        int w = 384;
+        int h = 288;
+        static uint8_t buff_1[288*384];
+        static uint8_t buff_2[288*384];
+        for (int i = 0; i < in_frame.height; i++) {
+            unsigned char *a = in_frame.jp_rows[i];
+            unsigned char* b = in_frame.data + (i * 384);
+            memcpy(&buff_1[i * 384], a, 384);
+        }
+        memcpy(buff_2, in_frame.data, 288*384);
+
+        FILE* f1 = fopen("raw_dump1", "wb");
+        FILE* f2 = fopen("raw_dump1", "wb");
+        if (f1) fwrite(buff_1, 1, sizeof(buff_1), f1);
+        if (f2) fwrite(buff_2, 1, sizeof(buff_2), f2);
+    }
+#endif
+
+#define JP_COMM_MAX_LEN 128
+    static char comment_txt[JP_COMM_MAX_LEN];
+    static int comment_len = 0;
+
+    jpeg_set_quality(&jp_cinfo, qlty, TRUE);
+
+    unsigned char* jp_buf_tmp = jp_buf;
+    unsigned long jp_buf_sz_tmp = jp_buf_sz;
+
+    jpeg_mem_dest(&jp_cinfo, &jp_buf_tmp, &jp_buf_sz_tmp);
+    jpeg_start_compress(&jp_cinfo, true);
+    if (comment_len) {
+        jpeg_write_marker(&jp_cinfo, JPEG_COM, (uint8_t*)comment_txt, comment_len + 1); // Null terminated
+    }
+
+    assert(buff_idx < in_frames_jp.size());
+    InFrameJP &in_frame = in_frames_jp.at(buff_idx);
+
+    jpeg_write_scanlines(&jp_cinfo, (JSAMPARRAY)in_frame.jp_rows.data(), in_frame.height );
+    jpeg_finish_compress(&jp_cinfo);
+
+    assert(jp_buf_tmp == jp_buf);   // As we provide our own buffer check it should NOT be changed by jpeglib
+
+    *jp_out_buf = jp_buf;
+    *jp_out_buf_sz = jp_buf_sz_tmp; // Actual lenght of encoded frame
+    return in_frame;
 }
 
 void TFlowVStream::fileCreateDir(const gchar *file_path)
@@ -383,15 +417,6 @@ void TFlowVStream::fileSplit()
     // check is directory exist. Create full path if not exist yet
     fileCreateDir(mjpeg_filename.c_str());
 
-    // Add mode suffix if configured
-    if (ctrl.cmd_flds_cfg_recording.suffix_mode.v.num) {
-        mjpeg_filename += std::string(
-            (imu.mode == TFlowImu::IMU_MODE::COPTER)   ? "-copter" :
-            (imu.mode == TFlowImu::IMU_MODE::PLANE)    ? "-plane"  :
-            (imu.mode == TFlowImu::IMU_MODE::DISARMED) ? "-disarm" : "-x"
-        );
-    }
-
     // Add start time suffix
     if (ctrl.cmd_flds_cfg_recording.suffix_ts_start.v.c_str) {
         constexpr int ts_suffix_max = 64;
@@ -421,7 +446,7 @@ void TFlowVStream::fileSplit()
     }
 }
 
-void TFlowVStream::onFrameStreaming(const TFlowBufPck::pck_consume* msg_consume)
+void TFlowVStream::onFrameStreaming(int src_id, const TFlowBufPck::pck_consume* msg_consume)
 {
     uint32_t aux_data_len = msg_consume->aux_data_len;
     const uint8_t *aux_data = msg_consume->aux_data;       // This data is from shared packet, thus do not modify!
@@ -454,18 +479,27 @@ void TFlowVStream::onFrameStreaming(const TFlowBufPck::pck_consume* msg_consume)
     }
 }
 
-void TFlowVStream::onFrameRecording(const TFlowBufPck::pck_consume* msg_consume)
+void TFlowVStream::onFrameRecording(int src_id, const TFlowBufPck::pck_consume* msg_consume)
 {
 #if CODE_BROWSE
     // called from
     TFlowBufCli::onMsg();
 #endif
+    int qlty = ctrl.cmd_flds_cfg_recording.jpeg_quality.v.num;
 
-    InFrameJP &in_frame = in_frames_jp.at(msg_consume->buff_index);
+    TFlowJPEnc *jp_enc =
+        (src_id == 0) ? jp_enc_cam0 :
+        (src_id == 1) ? jp_enc_cam1 : nullptr;
 
-#define JP_COMM_MAX_LEN 128
-    char comment_txt[JP_COMM_MAX_LEN];
-    int comment_len = 0;
+    assert(jp_enc);
+
+    unsigned char *jp_out_buf = nullptr;
+    long jp_out_buf_size = 0;
+    const InFrameJP &in_frame = jp_enc->jpEncode(msg_consume->buff_index, qlty,
+        &jp_out_buf, &jp_out_buf_size); 
+
+    assert(jp_out_buf_size);
+    assert(jp_out_buf);
 
     if (0 == isDumpRequired(msg_consume->aux_data, msg_consume->aux_data_len)) {
         return;
@@ -481,58 +515,25 @@ void TFlowVStream::onFrameRecording(const TFlowBufPck::pck_consume* msg_consume)
         return;
     }
 
-#if 1
-    static int g_dump_raw_img = 0;
-
-    if (g_dump_raw_img) {
-        int w = 384;
-        int h = 288;
-        static uint8_t buff_1[288*384];
-        static uint8_t buff_2[288*384];
-        for (int i = 0; i < in_frame.height; i++) {
-            unsigned char *a = in_frame.jp_rows[i];
-            unsigned char* b = in_frame.data + (i * 384);
-            memcpy(&buff_1[i * 384], a, 384);
-        }
-        memcpy(buff_2, in_frame.data, 288*384);
-
-        FILE* f1 = fopen("raw_dump1", "wb");
-        FILE* f2 = fopen("raw_dump1", "wb");
-        if (f1) fwrite(buff_1, 1, sizeof(buff_1), f1);
-        if (f2) fwrite(buff_2, 1, sizeof(buff_2), f2);
-    }
-#endif
-
-    jpeg_set_quality(&jp_cinfo, ctrl.cmd_flds_cfg_recording.jpeg_quality.v.num, TRUE);
-
-    unsigned char* jp_buf_tmp = jp_buf;
-    unsigned long jp_buf_sz_tmp = jp_buf_sz;
-
-    jpeg_mem_dest(&jp_cinfo, &jp_buf_tmp, &jp_buf_sz_tmp);
-    jpeg_start_compress(&jp_cinfo, true);
-    if (comment_len) {
-        jpeg_write_marker(&jp_cinfo, JPEG_COM, (uint8_t*)comment_txt, comment_len + 1); // Null terminated
-    }
-    jpeg_write_scanlines(&jp_cinfo, (JSAMPARRAY)in_frame.jp_rows.data(), in_frame.height );
-    jpeg_finish_compress(&jp_cinfo);
-
-    assert(jp_buf_tmp == jp_buf);   // As we provide our own buffer check it shouldn't be changed by jpeglib
-
 #pragma pack(push, 1)
     struct {
         char sign[4];
+        uint32_t src_id;
+        struct timeval ts;
         uint32_t width;
         uint32_t height;
         uint32_t format;
         uint32_t aux_data_len;
         uint32_t jpeg_sz;
     } jpeg_frame_data = {
-            .sign = {'R', 'T', '.', '2'},           // 0x322E5452
+            .sign = {'R', 'T', '.', '3'},           // 0x332E5452
+            .src_id = (uint32_t)src_id,             // Assigned on buffer client creation
+            .ts = msg_consume->ts,                  // Inherited from V4L2 buffer timeval
             .width        = in_frame.width,
             .height       = in_frame.height,
             .format       = in_frame.format,
             .aux_data_len = (uint32_t)msg_consume->aux_data_len,
-            .jpeg_sz      = (uint32_t)jp_buf_sz_tmp
+            .jpeg_sz      = (uint32_t)jp_out_buf_size
     };                                                      
 #pragma pack(pop)
 
@@ -545,7 +546,7 @@ void TFlowVStream::onFrameRecording(const TFlowBufPck::pck_consume* msg_consume)
             bwr += fwrite(msg_consume->aux_data, 1, msg_consume->aux_data_len, 
                 mjpeg_file);
         }
-        bwr += fwrite(jp_buf, 1, jp_buf_sz_tmp, mjpeg_file);
+        bwr += fwrite(jp_out_buf, 1, jp_out_buf_size, mjpeg_file);
         if (bwr == 0) {
             // Ooops, can't write any more. Close the file and try open a new 
             // one later.
@@ -578,14 +579,21 @@ void TFlowVStream::onFrameRecording(const TFlowBufPck::pck_consume* msg_consume)
     }
 }
 
-void TFlowVStream::onSrcGoneRecording()
+void TFlowVStream::onSrcGoneRecording(int cam_id)
 {
-    jpEncClose();
+    if (cam_id == 0 && jp_enc_cam0) {
+        delete jp_enc_cam0;
+        jp_enc_cam0 = nullptr;
+    }
+    else if (cam_id == 1 && jp_enc_cam1) {
+        delete jp_enc_cam1;
+        jp_enc_cam1 = nullptr;
+    }
 
     fileClose();
 }
 
-void TFlowVStream::onSrcGoneStreaming()
+void TFlowVStream::onSrcGoneStreaming(int src_id)
 {
     if (ws_streamer) {
         ws_streamer->stop();
@@ -603,15 +611,10 @@ void TFlowVStream::onSrcGoneStreaming()
     }
 }
 
-void TFlowVStream::onConnect()
-{
-}
+void TFlowVStream::onConnect(int src_id) {}
+void TFlowVStream::onDisconnect(int src_id) {}
 
-void TFlowVStream::onDisconnect()
-{
-}
-
-void TFlowVStream::onSrcReadyRecording(const TFlowBufPck::pck_fd* src_info) 
+void TFlowVStream::onSrcReadyRecording(int src_id, const TFlowBufPck::pck_src_info* src_info) 
 {
     switch (src_info->format) {
     case V4L2_PIX_FMT_GREY:
@@ -629,11 +632,22 @@ void TFlowVStream::onSrcReadyRecording(const TFlowBufPck::pck_fd* src_info)
         return;
     }
 
-    jpEncOpen(src_info->width, src_info->height, buf_cli_recording->tflow_bufs);
+    switch (src_id) {
+        case 0: 
+            if (jp_enc_cam0) delete jp_enc_cam0;
+            jp_enc_cam0 = new TFlowJPEnc(src_info->width, src_info->height, buf_cli_recording_cam0->tflow_bufs);
+            break;
+        case 1:
+            if (jp_enc_cam1) delete jp_enc_cam1;
+            jp_enc_cam1 = new TFlowJPEnc(src_info->width, src_info->height, buf_cli_recording_cam1->tflow_bufs);
+            break;
+        default:
+            g_warning("Oooops - Unknown cam id %d", src_id);
+    }
 
 }
 
-void TFlowVStream::onSrcReadyStreaming(const TFlowBufPck::pck_fd* src_info) 
+void TFlowVStream::onSrcReadyStreaming(int src_id, const TFlowBufPck::pck_src_info* src_info) 
 {
     switch (src_info->format) {
     case V4L2_PIX_FMT_GREY:
@@ -726,17 +740,17 @@ int TFlowVStream::setStreamingSrc(TFlowCtrlVStreamUI::VIDEO_SRC src,
 
     const char *srv_name = 
         (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM0) ? "com.reedl.tflow.capture0.buf-server" :
-        //(src == TFlowCtrlVStreamUI::VIDEO_SRC::VIDEO_SRC_CAM1) ? "com.reedl.tflow.capture1.buf-server" :
+        (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM1) ? "com.reedl.tflow.capture1.buf-server" :
         (src == TFlowCtrlVStreamUI::VIDEO_SRC_PROC) ? "com.reedl.tflow.process.buf-server" : "";
 
     buf_cli_streaming = new TFlowBufCli(
         context,
-        "TFlowVStream", srv_name,
-        std::bind(&TFlowVStream::onFrameStreaming,    this, std::placeholders::_1),   // TFlowBufCli::app_onFrame()
-        std::bind(&TFlowVStream::onSrcReadyStreaming, this, std::placeholders::_1),   // TFlowBufCli::app_onSrcReady()
-        std::bind(&TFlowVStream::onSrcGoneStreaming,  this),                          // TFlowBufCli::app_onSrcGone()
-        std::bind(&TFlowVStream::onConnect,           this),                          // TFlowBufCli::app_onConnect()
-        std::bind(&TFlowVStream::onDisconnect,        this));                         // TFlowBufCli::app_onDisconnect()
+        "TFlowVStream", srv_name, 0,
+        std::bind(&TFlowVStream::onFrameStreaming,      this, std::placeholders::_1, std::placeholders::_2),   // TFlowBufCli::app_onFrame()
+        std::bind(&TFlowVStream::onSrcReadyStreaming,   this, std::placeholders::_1, std::placeholders::_2),   // TFlowBufCli::app_onSrcReady()
+        std::bind(&TFlowVStream::onSrcGoneStreaming,    this, std::placeholders::_1),                          // TFlowBufCli::app_onSrcGone()
+        std::bind(&TFlowVStream::onConnect,             this, std::placeholders::_1),                          // TFlowBufCli::app_onConnect()
+        std::bind(&TFlowVStream::onDisconnect,          this, std::placeholders::_1));                         // TFlowBufCli::app_onDisconnect()
 
     return 0;
 }
@@ -744,9 +758,13 @@ int TFlowVStream::setStreamingSrc(TFlowCtrlVStreamUI::VIDEO_SRC src,
 int TFlowVStream::setRecordingSrc(int src, int en)
 {
     // Close current stream in any case
-    if (buf_cli_recording) {
-        delete buf_cli_recording;
-        buf_cli_recording = nullptr;
+    if (buf_cli_recording_cam0) {
+        delete buf_cli_recording_cam0;
+        buf_cli_recording_cam0 = nullptr;
+    }
+    if (buf_cli_recording_cam1) {
+        delete buf_cli_recording_cam1;
+        buf_cli_recording_cam1 = nullptr;
     }
 
     fileClose();
@@ -755,18 +773,42 @@ int TFlowVStream::setRecordingSrc(int src, int en)
         return 0;
     }
 
-    const char *srv_name = 
-        (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM0) ? "com.reedl.tflow.capture0.buf-server" :
-        (src == TFlowCtrlVStreamUI::VIDEO_SRC_PROC) ? "com.reedl.tflow.process.buf-server" : "";
+    if (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM0  ||
+        src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM01 || 
+        src == TFlowCtrlVStreamUI::VIDEO_SRC_PROC) {
+        const char *srv_name = 
+            (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM0 ) ? "com.reedl.tflow.capture0.buf-server" :
+            (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM01) ? "com.reedl.tflow.capture0.buf-server" :
+            (src == TFlowCtrlVStreamUI::VIDEO_SRC_PROC ) ? "com.reedl.tflow.process.buf-server" : "";
 
-    buf_cli_recording = new TFlowBufCli(
-        context,
-        "TFlowVStream", srv_name,
-        std::bind(&TFlowVStream::onFrameRecording,    this, std::placeholders::_1),   // TFlowBufCli::app_onFrame()
-        std::bind(&TFlowVStream::onSrcReadyRecording, this, std::placeholders::_1),   // TFlowBufCli::app_onSrcReady()
-        std::bind(&TFlowVStream::onSrcGoneRecording,  this),                          // TFlowBufCli::app_onSrcGone()
-        std::bind(&TFlowVStream::onConnect,           this),                          // TFlowBufCli::app_onConnect()
-        std::bind(&TFlowVStream::onDisconnect,        this));                         // TFlowBufCli::app_onDisconnect()
+        buf_cli_recording_cam0 = new TFlowBufCli(
+            context,
+            "TFlowVStreamRecCAM0", srv_name, 0,
+            std::bind(&TFlowVStream::onFrameRecording,    this, std::placeholders::_1, std::placeholders::_2),   // TFlowBufCli::app_onFrame()
+            std::bind(&TFlowVStream::onSrcReadyRecording, this, std::placeholders::_1, std::placeholders::_2),   // TFlowBufCli::app_onSrcReady()
+            std::bind(&TFlowVStream::onSrcGoneRecording,  this, std::placeholders::_1),                          // TFlowBufCli::app_onSrcGone()
+            std::bind(&TFlowVStream::onConnect,           this, std::placeholders::_1),                          // TFlowBufCli::app_onConnect()
+            std::bind(&TFlowVStream::onDisconnect,        this, std::placeholders::_1));                         // TFlowBufCli::app_onDisconnect()
+    } 
+
+    if (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM1 ||
+        src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM01) {
+
+        const char *srv_name = "com.reedl.tflow.capture1.buf-server";
+        //const char *srv_name = 
+        //    (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM1 ) ? "com.reedl.tflow.capture1.buf-server" :
+        //    (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM01) ? "com.reedl.tflow.capture1.buf-server" : "";
+
+        buf_cli_recording_cam1 = new TFlowBufCli(
+            context,
+            "TFlowVStreamRecCAM1", srv_name, 1,
+            std::bind(&TFlowVStream::onFrameRecording,    this, std::placeholders::_1, std::placeholders::_2),   // TFlowBufCli::app_onFrame()
+            std::bind(&TFlowVStream::onSrcReadyRecording, this, std::placeholders::_1, std::placeholders::_2),   // TFlowBufCli::app_onSrcReady()
+            std::bind(&TFlowVStream::onSrcGoneRecording,  this, std::placeholders::_1),                          // TFlowBufCli::app_onSrcGone()
+            std::bind(&TFlowVStream::onConnect,           this, std::placeholders::_1),                          // TFlowBufCli::app_onConnect()
+            std::bind(&TFlowVStream::onDisconnect,        this, std::placeholders::_1));                         // TFlowBufCli::app_onDisconnect()
+    } 
+
 
     return 0;
 }

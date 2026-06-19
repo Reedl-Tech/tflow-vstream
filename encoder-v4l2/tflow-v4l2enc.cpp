@@ -34,12 +34,10 @@ void* TFlowEnc::_EncThread(void* ctx)
 
 void TFlowEnc::updateStatistics(uint32_t _encoded_bytes)
 {
-    static int presc = 0;
-
     frames_encoded++;
     encoded_bytes += _encoded_bytes;
 
-    if ((presc++ & 0xFF) == 0) {
+    PRESC(0xFF) {
         float actual_k_bitrate = NAN;
         clock_gettime(CLOCK_MONOTONIC, &wall_time_tp);
         double dt_sec = TFlowPerfMon::diff_timespec_msec(&wall_time_tp, &wall_time_prev_tp) / 1000;
@@ -183,6 +181,10 @@ void TFlowEnc::EncThread()
                         TFlowEnc::enqueueOutputBuffer(TFlowBuf &buf)
 #endif
                 }
+                else {
+                    g_critical("AV: === catch me");
+                    assert(0);
+                }
                 if (dqbuf_out.flags & V4L2_BUF_FLAG_LAST) {
                     g_info("V4l2Driver: Last frame processed");
                     break;
@@ -254,16 +256,16 @@ int TFlowEnc::onOutputReady(TFlowBuf& buf)
     // Application callback here
     if (app_onFrameEncoded) {
         app_onFrameEncoded(buf);
-    }
-    else {
-        enqueueOutputBuffer(buf);
-    }
-
 #if CODE_BROWSE
     TFlowWSVStreamer::onFrameEncoded(buf);
     TFlowUDPVStreamer::onFrameEncoded(buf);
     TFlowRTSPVStreamer::onFrameEncoded(buf);
 #endif
+    }
+    else {
+        enqueueOutputBuffer(buf);
+    }
+
     return 0;
 }
 
@@ -283,13 +285,14 @@ TFlowBuf* TFlowEnc::getFreeInputBuffer()
 {
     if (!initialized) return nullptr;
 
-    for (auto& b : input_bufs) {
+    for (auto &b : input_bufs) {
         if (b.state == TFlowBuf::BUF_STATE_FREE) {
             b.state = TFlowBuf::BUF_STATE_APP;
             // g_info("===ENC=== get free  %d   0x%08X", b.index, b.v4l2_buf.flags);
             return &b;
         }
     }
+    g_critical("AV:===== No input buffers === ");
     return nullptr;
 }
 
@@ -305,12 +308,12 @@ int TFlowEnc::enqueueOutputBuffer(TFlowBuf &buf)
     buf.v4l2_buf.m.planes[0].bytesused = 0;
     buf.v4l2_buf.m.planes[0].data_offset = 0;
 
-    buf.state = TFlowBuf::BUF_STATE_DRIVER;
     // Put the buffer to driver's queue
     if (-1 == ioctl(enc_dev_fd, VIDIOC_QBUF, &buf.v4l2_buf)) {
         g_critical("Can't VIDIOC_QBUF (%d) - %s", errno, strerror(errno));
         return -1;
     }
+    buf.state = TFlowBuf::BUF_STATE_DRIVER;
 
     return 0;
 }
@@ -320,6 +323,17 @@ int TFlowEnc::enqueueInputBuffer(TFlowBuf &buf)
     struct timespec tp;
 
     if (!initialized) return 0;
+
+    assert(buf.state == TFlowBuf::BUF_STATE_APP);
+
+    {
+        static int len = 0;
+        if (len == 0) len = buf.v4l2_buf.m.planes[0].length;
+
+        // AV: ====
+        // Paranoia. Check buffer length changed. Delme after debug
+        assert(len == buf.v4l2_buf.m.planes[0].length);
+    }
 
     // In assumption an application always provides full frame
     buf.v4l2_buf.m.planes[0].bytesused = buf.v4l2_buf.m.planes[0].length;
@@ -331,7 +345,6 @@ int TFlowEnc::enqueueInputBuffer(TFlowBuf &buf)
     buf.v4l2_buf.timestamp.tv_usec = tp.tv_nsec / 1000;
     buf.v4l2_buf.flags |= V4L2_BUF_FLAG_TIMESTAMP_COPY;
 
-    buf.state = TFlowBuf::BUF_STATE_DRIVER;
 
     //memset(&buffer, 0, sizeof(buffer));
     //memset(&plane, 0, sizeof(plane));
@@ -348,6 +361,7 @@ int TFlowEnc::enqueueInputBuffer(TFlowBuf &buf)
         g_critical("Can't VIDIOC_QBUF (%d) - %s", errno, strerror(errno));
         return -1;
     }
+    buf.state = TFlowBuf::BUF_STATE_DRIVER;
 
     return 0;
 }
