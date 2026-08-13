@@ -13,7 +13,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-#include <glib-unix.h>
+#include "tflow-glib.hpp"
 
 #include "tflow-ctrl.hpp"
 
@@ -387,6 +387,14 @@ void  TFlowCtrl::collectRequestedChanges(tflow_cmd_field_t* in_cmd_fields,
 
             if (cmd_fld_ref_hdr) {
                 int all_next = all | (cmd_field->flags & FIELD_FLAG::REQUESTED);
+
+                // If Custom UI group changed - report whole group
+                int custom_ui_ctrl_changed = (cmd_field->ui_ctrl && 
+                    cmd_field->ui_ctrl->type > UICTRL_TYPE::CUSTOM) ?
+                    (cmd_field->flags & FIELD_FLAG::CHANGED) : 0;         
+
+                all_next |= custom_ui_ctrl_changed;
+
                 Json::object j_sub_ctrl_params;
                 collectRequestedChanges(cmd_fld_ref_hdr + 1, j_sub_ctrl_params, was_changed, all_next);   // +1 to skip header
                 if (j_sub_ctrl_params.size() > 0) {
@@ -394,7 +402,7 @@ void  TFlowCtrl::collectRequestedChanges(tflow_cmd_field_t* in_cmd_fields,
                 }
             }
             cmd_field->flags = FIELD_FLAG::NONE;
-            }
+        }
         else if ( cmd_field->flags || all ) {     
             // Field has been changed or requested or group was
             // requested or full response on config ID mismatch.
@@ -425,7 +433,8 @@ void  TFlowCtrl::collectRequestedChanges(tflow_cmd_field_t* in_cmd_fields,
                 }
                 break;
 
-            case CFT_VNUM: {
+            case CFT_VNUM:
+            {
                 Json::array j_val_arr;
                 for (int v : *cmd_field->v.vnum) {
                     j_val_arr.emplace_back(v);
@@ -578,6 +587,7 @@ void TFlowCtrl::freeStrField(tflow_cmd_field_t* fld)
     }
 
 }
+
 int TFlowCtrl::setField(tflow_cmd_field_t* cmd_field, const Json& cfg_param)
 {
     if (cfg_param.is_object() && cfg_param.object_items().empty()) {
@@ -607,9 +617,28 @@ int TFlowCtrl::setField(tflow_cmd_field_t* cmd_field, const Json& cfg_param)
         break;
     }
     case CFT_NUM: {
-        int new_num_value;
+        int new_num_value = 0;
+
         if (cfg_param.is_number()) {
             new_num_value = cfg_param.int_value();
+
+            // Numeric dropdown UI configured by numeric value.
+            if (cmd_field->ui_ctrl && 
+                cmd_field->ui_ctrl->type == UICTRL_TYPE::DROPDOWN) {
+                const char **dd_entry = cmd_field->ui_ctrl->dropdown.val;
+                int i = 0;
+                while (*dd_entry) {
+                    if (new_num_value == i) break;
+                    i++;
+                    dd_entry++;
+                }
+                if (*dd_entry == nullptr) {
+                    new_num_value = 0;
+                    g_critical("Error in config: %d out of list %s. Value[%d] %s  is used instead.",
+                        cfg_param.int_value(), cmd_field->ui_ctrl->label, 
+                        new_num_value, *cmd_field->ui_ctrl->dropdown.val);
+                }
+            }
         }
         else if (cfg_param.is_string()) {
             // If string received for numeric fields, then check UI 
@@ -622,9 +651,16 @@ int TFlowCtrl::setField(tflow_cmd_field_t* cmd_field, const Json& cfg_param)
                 while (*dd_entry) {
                     if (0 == strcmp(*dd_entry, cfg_param.string_value().data())) {
                         new_num_value = i;
+                        break;
                     }
                     i++;
                     dd_entry++;
+                }
+                if (*dd_entry == nullptr) {
+                    g_critical("Error in config: %s not found in %s. Value \"%s\" is used instead.",
+                        cfg_param.string_value().data(), 
+                        cmd_field->ui_ctrl->label, 
+                        *cmd_field->ui_ctrl->dropdown.val);
                 }
             }
             else {
@@ -646,12 +682,11 @@ int TFlowCtrl::setField(tflow_cmd_field_t* cmd_field, const Json& cfg_param)
             if (cmd_field->ui_ctrl &&
                 cmd_field->ui_ctrl->type == UICTRL_TYPE::BUTTON) {
                 // Don't care about value for buttons. Just set CHANGED flag
-                cmd_field->flags |= FIELD_FLAG::CHANGED;
             }
             else {
-                cmd_field->flags |= FIELD_FLAG::CHANGED;
                 cmd_field->v.num = new_num_value;
             }
+            cmd_field->flags |= FIELD_FLAG::CHANGED;
         }
         break;
     }
@@ -797,6 +832,7 @@ int TFlowCtrl::parseConfig(
                 rc |= config_cmd->cb(j_cmd_cfg, j_out_params_dummy);
 #if CODE_BROWSE
                 TFlowCtrlProcess::cmd_cb_config();
+                TFlowCtrlCapture::cmd_cb_config();
                 TFlowCtrlVStream::cmd_cb_recording_config();
                 TFlowCtrlVStream::cmd_cb_streaming_config();
 #endif

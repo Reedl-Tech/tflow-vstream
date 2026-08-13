@@ -16,7 +16,7 @@
     <RemoteDebuggerWorkingDirectory>/root/</RemoteDebuggerWorkingDirectory>
     <RemoteDebuggingMode>gdbserver</RemoteDebuggingMode>
     <DebuggerFlavor>LinuxDebugger</DebuggerFlavor>
-    <RemoteTarget>-1880260558;192.168.1.104 (username=, port=22, authentication=Password)</RemoteTarget>
+    <RemoteTarget>-1293454544;192.168.1.102 (username=, port=22, authentication=Password)</RemoteTarget>
     <AdditionalDebuggerCommands>set substitute-path /usr/src/debug/tflow-vstream/1.0 /home/av/8dev-Scarthgap/compulab-nxp-bsp/build-ucm-imx8m-plus-bubo/workspace/sources/tflow-vstream</AdditionalDebuggerCommands>
     <RemoteGDBPath>C:\MyWorks\LKD\tflow-sdk\gdb\aarch64-none-elf-gdb.exe</RemoteGDBPath>
   </PropertyGroup>
