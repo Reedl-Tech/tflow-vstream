@@ -192,9 +192,12 @@ int TFlowRTSPVStreamer::StartRTSP()
 
     if (cfg->enc_type.v.num == TFlowRTSPStreamerUI::ENC_TYPE_H265) {
         gst_rtsp_media_factory_set_launch(factory,
-            "( appsrc  name=vstreamer  ! vpuenc_hevc ! rtph265pay name=pay0 pt=96 )");    // GST OK. 16% CPU load @ 50FPS
+//            "( appsrc  name=vstreamer  ! videocrop top=50 left=50 right=50 bottom=50 ! vpuenc_hevc ! rtph265pay name=pay0 pt=96 )");    // GST OK. 16% CPU load @ 50FPS
+            "( appsrc  name=vstreamer  ! videocrop top=10 left=10 right=406 bottom=302 ! vpuenc_hevc ! rtph265pay name=pay0 pt=96 )");    // GST OK. 16% CPU load @ 50FPS
+//            "( appsrc  name=vstreamer ! vpuenc_hevc ! rtph265pay name=pay0 pt=96 )");    // GST OK. 16% CPU load @ 50FPS
     }
     else {
+        
         gst_rtsp_media_factory_set_launch(factory,
             "( appsrc  name=vstreamer  ! vpuenc_h264 ! rtph264pay name=pay0 pt=96 )");   // GST OK. 22 % CPU load @ 50FPS
     }
@@ -265,8 +268,8 @@ TFlowRTSPVStreamer::TFlowRTSPVStreamer(int _w, int _h,
 
     width = _w;
     height = _h;
-    uint32_t format = V4L2_PIX_FMT_ABGR32;  
-    
+    uint32_t format = V4L2_PIX_FMT_ABGR32;
+
     // TODO: pass format as a constructor param received on SRC connection
 
     frame_size = (width * height *
