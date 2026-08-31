@@ -1,0 +1,10 @@
+{
+    "streaming_config" : {
+        "streaming_type" : "RTSP",
+        "rtsp_streamer" : {
+            "enc_type" : "H265",
+	    "crop_en"  : 1
+        }
+    }
+} 
+
