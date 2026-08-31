@@ -697,7 +697,6 @@ int TFlowEnc::Init()
     rc = setFrameInterval();
     if (rc) return rc;
 
-
     json11::Json::object j_dummy;
     rc = onConfig(j_dummy, true);
     //if (rc) return rc;

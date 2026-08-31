@@ -190,18 +190,34 @@ int TFlowRTSPVStreamer::StartRTSP()
     // Use default port - 8554
     // g_object_set (server, "service", "554", NULL);
 
+    char gst_crop_str[128] = { 0 };
+    if (cfg->crop_en.v.num) {
+        snprintf(gst_crop_str, sizeof(gst_crop_str) - 1,
+            "! videocrop top=%d left=%d right=%d bottom=%d ",
+            (*cfg->crop_v.v.vnum)[0],  // crop_top
+            (*cfg->crop_h.v.vnum)[0],  // crop_left,
+            (*cfg->crop_h.v.vnum)[1],  // crop_right
+            (*cfg->crop_v.v.vnum)[1]); // crop_bottom
+    }
+
+    char gst_pipeline_str[256] = { 0 };
     if (cfg->enc_type.v.num == TFlowRTSPStreamerUI::ENC_TYPE_H265) {
-        gst_rtsp_media_factory_set_launch(factory,
-//            "( appsrc  name=vstreamer  ! videocrop top=50 left=50 right=50 bottom=50 ! vpuenc_hevc ! rtph265pay name=pay0 pt=96 )");    // GST OK. 16% CPU load @ 50FPS
-            "( appsrc  name=vstreamer  ! videocrop top=10 left=10 right=406 bottom=302 ! vpuenc_hevc ! rtph265pay name=pay0 pt=96 )");    // GST OK. 16% CPU load @ 50FPS
-//            "( appsrc  name=vstreamer ! vpuenc_hevc ! rtph265pay name=pay0 pt=96 )");    // GST OK. 16% CPU load @ 50FPS
+        snprintf(gst_pipeline_str, sizeof(gst_pipeline_str) - 1,
+            "( appsrc name=vstreamer %s ! vpuenc_hevc ! rtph265pay name=pay0 pt=96 )",
+            gst_crop_str);
     }
     else {
-        
-        gst_rtsp_media_factory_set_launch(factory,
-            "( appsrc  name=vstreamer  ! vpuenc_h264 ! rtph264pay name=pay0 pt=96 )");   // GST OK. 22 % CPU load @ 50FPS
+        snprintf(gst_pipeline_str, sizeof(gst_pipeline_str) - 1,
+            "( appsrc name=vstreamer %s ! vpuenc_h264 ! rtph264pay name=pay0 pt=96 )",
+            gst_crop_str);
     }
-    // "( appsrc name=vstreamer   ! videoconvert ! video/x-raw,format=I420 ! x264enc  ! rtph264pay name=pay0 pt=96 )");   // VLC/GST OK        CPU load 6 threads by 30% each!!!
+    gst_rtsp_media_factory_set_launch(factory, gst_pipeline_str);
+
+        //gst_rtsp_media_factory_set_launch(factory,
+//      "(appsrc name=vstreamer  ! vpuenc_h264 ! rtph264pay name=pay0 pt=96 )");   // GST OK. 22 % CPU load @ 50FPS
+//      "( appsrc  name=vstreamer  ! videocrop top=10 left=10 right=406 bottom=302 ! vpuenc_hevc ! rtph265pay name=pay0 pt=96 )");    // GST OK. 16% CPU load @ 50FPS
+//      "( appsrc  name=vstreamer  ! vpuenc_hevc ! rtph265pay name=pay0 pt=96 )");    // GST OK. 16% CPU load @ 50FPS
+//      "( appsrc name=vstreamer   ! videoconvert ! video/x-raw,format=I420 ! x264enc  ! rtph264pay name=pay0 pt=96 )");   // VLC/GST OK        CPU load 6 threads by 30% each!!!
 
     sigid_media_configure = g_signal_connect(factory, "media-configure",
         (GCallback)s_media_configure, this);
@@ -309,8 +325,9 @@ void TFlowRTSPVStreamer::onConfigValidate(json11::Json::object& j_out_params,
 
 int TFlowRTSPVStreamer::onConfig(json11::Json::object& j_out_params)
 {
-    if (cfg->fps.flags & TFlowCtrl::FIELD_FLAG::CHANGED ||
-        cfg->enc_type.flags & TFlowCtrl::FIELD_FLAG::CHANGED) {
+    if (cfg->fps.flags      & TFlowCtrl::FIELD_FLAG::CHANGED ||
+        cfg->enc_type.flags & TFlowCtrl::FIELD_FLAG::CHANGED ||
+        cfg->crop_en.flags  & TFlowCtrl::FIELD_FLAG::CHANGED) {
 
         CloseRTSP();
         StartRTSP();
