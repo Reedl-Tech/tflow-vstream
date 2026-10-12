@@ -5,6 +5,11 @@
             "enc_type" : "H265",
 	    "crop_en"  : 1
         }
+    },
+    "recording_config" : {
+        "rec_src" : "CAM 0+1",
+        "max_tot_size_mb" : 2048
     }
 } 
+
 
