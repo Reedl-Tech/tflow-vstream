@@ -49,10 +49,9 @@ add_executable (${PROJECT_NAME}
     "streamer-ws/tflow-ws-vstreamer.cpp"
     "streamer-ws/tflow-ws-vstreamer.hpp"
     "streamer-ws/tflow-ws-vstreamer-cfg.hpp"
-    "streamer-udp/tflow-udp-vstreamer-cfg.hpp"
-    "streamer-udp/tflow-udp-vstreamer-if.cpp"
-    "streamer-udp/tflow-udp-vstreamer.cpp"
-    "streamer-udp/tflow-udp-vstreamer.hpp"
+    "streamer-rtp/tflow-rtp-vstreamer-cfg.hpp"
+    "streamer-rtp/tflow-rtp-vstreamer.cpp"
+    "streamer-rtp/tflow-rtp-vstreamer.hpp"
 )
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)

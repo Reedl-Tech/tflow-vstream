@@ -5,6 +5,9 @@
 #include <json11.hpp>
 #include "tflow-vstream.hpp"
 
+int g_dbg_consume_en = 1;
+int g_dbg_consume_bump = 0;
+
 using namespace json11;
 
 static const char *raw_cfg_default =  R"( 
@@ -154,6 +157,13 @@ int TFlowCtrlVStream::cmd_cb_streaming_config(const json11::Json& j_in_params, J
             app.ws_streamer->onConfigValidate(j_out_params, ws_streamer_rw_cfg);
             app.ws_streamer->onConfig(j_out_params);
         }
+    }
+
+    if (cmd_flds_cfg_streaming.capture_en.flags & FIELD_FLAG::CHANGED) {
+        g_dbg_consume_en = cmd_flds_cfg_streaming.capture_en.v.num;
+    }
+    if (cmd_flds_cfg_streaming.capture_bump.flags & FIELD_FLAG::CHANGED) {
+        g_dbg_consume_bump = 1;
     }
 
     if (cmd_flds_cfg_streaming.rtsp_streamer.flags & FIELD_FLAG::CHANGED) {

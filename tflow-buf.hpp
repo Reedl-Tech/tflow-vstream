@@ -47,6 +47,6 @@ public:
      */
 
     uint32_t aux_data_len;
-    const uint8_t* aux_data;
+    uint8_t  aux_data[512];
 };
 

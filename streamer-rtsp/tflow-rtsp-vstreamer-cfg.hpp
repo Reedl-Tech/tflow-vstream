@@ -51,6 +51,8 @@ public:
     struct cfg_rtsp_streamer {
         TFlowCtrl::tflow_cmd_field_t   head;
         TFlowCtrl::tflow_cmd_field_t   enc_type;        // H264 or H265
+        TFlowCtrl::tflow_cmd_field_t   port;
+        TFlowCtrl::tflow_cmd_field_t   mount_name;
         TFlowCtrl::tflow_cmd_field_t   fps;
         TFlowCtrl::tflow_cmd_field_t   crop_en;
         TFlowCtrl::tflow_cmd_field_t   crop_h;
@@ -58,11 +60,13 @@ public:
         TFlowCtrl::tflow_cmd_field_t   eomsg;
     } cmd_flds_cfg_rtsp_streamer = {
         TFLOW_CMD_HEAD("RTSP Streamer"),
-        .enc_type = { "enc_type", CFT_NUM,  0, { .num  = ENC_TYPE_H264 }, &ui_encoder_type },
-        .fps      = { "fps",      CFT_NUM,  0, { .num  = 25            }, &ui_edit_def     },
-        .crop_en  = { "crop_en",  CFT_NUM,  0, { .num = 0              }, &ui_switch_def   },
-        .crop_h   = { "crop_h",   CFT_VNUM, 0, { .vnum = &crop_h_value }, &ui_sl2_crop_h   },
-        .crop_v   = { "crop_v",   CFT_VNUM, 0, { .vnum = &crop_v_value }, &ui_sl2_crop_v   },
+        .enc_type   = { "enc_type",    CFT_NUM,  0, { .num  = ENC_TYPE_H264 }, &ui_encoder_type },
+        .port       = { "port",        CFT_NUM,  0, { .num = 30554 }, &ui_edit_def},
+        .mount_name = { "mount_name",  CFT_STR,  0, { .str = strdup("my_str_name") }, &ui_edit_def},
+        .fps        = { "fps",         CFT_NUM,  0, { .num  = 25            }, &ui_edit_def     },
+        .crop_en    = { "crop_en",     CFT_NUM,  0, { .num = 0              }, &ui_switch_def   },
+        .crop_h     = { "crop_h",      CFT_VNUM, 0, { .vnum = &crop_h_value }, &ui_sl2_crop_h   },
+        .crop_v     = { "crop_v",      CFT_VNUM, 0, { .vnum = &crop_v_value }, &ui_sl2_crop_v   },
         TFLOW_CMD_EOMSG
     };
 };

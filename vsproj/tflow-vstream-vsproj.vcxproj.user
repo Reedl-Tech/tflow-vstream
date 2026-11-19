@@ -21,7 +21,7 @@
     <RemoteGDBPath>C:\MyWorks\LKD\tflow-sdk\gdb\aarch64-none-elf-gdb.exe</RemoteGDBPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='6.6-8dev-Fixar|ARM64'">
-    <RemoteDebuggingTarget>1053516975;192.168.2.77 (username=, port=22, authentication=Password)</RemoteDebuggingTarget>
+    <RemoteDebuggingTarget>1866622111;192.168.2.4 (username=, port=22, authentication=Password)</RemoteDebuggingTarget>
     <RemoteDebuggerCommand>/root/tflow-vstream</RemoteDebuggerCommand>
     <RemoteDebuggerWorkingDirectory>/root/</RemoteDebuggerWorkingDirectory>
     <RemoteDebuggingMode>gdbserver</RemoteDebuggingMode>

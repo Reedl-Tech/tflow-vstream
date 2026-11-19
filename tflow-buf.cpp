@@ -63,9 +63,9 @@ TFlowBuf::TFlowBuf(int enc_fd, enum v4l2_buf_type buf_type, int index, int plane
         this->index = index;
         this->state = BUF_STATE_FREE;
     }
-    aux_data_len = 0;
-    aux_data = nullptr;
 
+    aux_data_len = 0;
+    memset(aux_data, 0xAA, sizeof(aux_data));
 }
 
 TFlowBuf::TFlowBuf()
@@ -83,7 +83,7 @@ TFlowBuf::TFlowBuf()
     owners = 0;             // Bit mask of TFlowBufCli. Bit 0 - means buffer is in user space
 
     aux_data_len = 0;
-    aux_data = nullptr;
+    memset(aux_data, 0xAA, sizeof(aux_data));
 }
 
 int TFlowBuf::age() {

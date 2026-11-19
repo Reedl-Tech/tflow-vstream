@@ -14,12 +14,6 @@
     <ClCompile Include="..\streamer-ws\tflow-ws-vstreamer.cpp">
       <Filter>streamer-ws</Filter>
     </ClCompile>
-    <ClCompile Include="..\streamer-udp\tflow-udp-vstreamer.cpp">
-      <Filter>streamer-udp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\streamer-udp\tflow-udp-vstreamer-if.cpp">
-      <Filter>streamer-udp</Filter>
-    </ClCompile>
     <ClCompile Include="..\encoder-v4l2\tflow-v4l2enc.cpp">
       <Filter>encoder-v4l2</Filter>
     </ClCompile>
@@ -29,6 +23,9 @@
     </ClCompile>
     <ClCompile Include="..\streamer-rtsp\tflow-rtsp-vstreamer.cpp">
       <Filter>streamer-rtsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\streamer-rtp\tflow-rtp-vstreamer.cpp">
+      <Filter>streamer-rtp</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -58,12 +55,6 @@
     <ClInclude Include="..\streamer-ws\tflow-ws-vstreamer-cfg.hpp">
       <Filter>streamer-ws</Filter>
     </ClInclude>
-    <ClInclude Include="..\streamer-udp\tflow-udp-vstreamer.hpp">
-      <Filter>streamer-udp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\streamer-udp\tflow-udp-vstreamer-cfg.hpp">
-      <Filter>streamer-udp</Filter>
-    </ClInclude>
     <ClInclude Include="..\encoder-v4l2\tflow-v4l2enc.hpp">
       <Filter>encoder-v4l2</Filter>
     </ClInclude>
@@ -78,6 +69,12 @@
       <Filter>streamer-rtsp</Filter>
     </ClInclude>
     <ClInclude Include="..\tflow-glib.hpp" />
+    <ClInclude Include="..\streamer-rtp\tflow-rtp-vstreamer.hpp">
+      <Filter>streamer-rtp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\streamer-rtp\tflow-rtp-vstreamer-cfg.hpp">
+      <Filter>streamer-rtp</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\CMakeLists.txt" />
@@ -92,14 +89,14 @@
     <Filter Include="encoder-v4l2">
       <UniqueIdentifier>{d0ddac30-281b-418a-9d9d-d842c20e087e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="streamer-udp">
-      <UniqueIdentifier>{1861ed4f-52b6-4ef0-b5b5-f89feb6d426d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="streamer-ws">
       <UniqueIdentifier>{f564e2f8-2ae7-4b6f-9f6f-b8ae6ae9c5c0}</UniqueIdentifier>
     </Filter>
     <Filter Include="streamer-rtsp">
       <UniqueIdentifier>{379fa8f3-6054-46ea-862a-bc44be327aed}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="streamer-rtp">
+      <UniqueIdentifier>{1861ed4f-52b6-4ef0-b5b5-f89feb6d426d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

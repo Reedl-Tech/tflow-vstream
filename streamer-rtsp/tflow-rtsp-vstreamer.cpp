@@ -187,8 +187,15 @@ int TFlowRTSPVStreamer::StartRTSP()
     factory = gst_rtsp_media_factory_new();
     gst_object_ref(factory);    // Will be cleaned on Stop()
 
-    // Use default port - 8554
-    // g_object_set (server, "service", "554", NULL);
+    char port_str[16] = { 0 };
+    if (cfg->port.v.num) {
+        snprintf(port_str, sizeof(port_str) - 1, "%d", cfg->port.v.num);
+        g_object_set(server, "service", port_str, NULL);
+    }
+    else {
+        snprintf(port_str, sizeof(port_str) - 1, "%d", 8554);
+        // Use default port - 8554
+    }
 
     char gst_crop_str[128] = { 0 };
     if (cfg->crop_en.v.num) {
@@ -227,6 +234,15 @@ int TFlowRTSPVStreamer::StartRTSP()
      *      should not be used after calling this function. 
      */
     gst_rtsp_mount_points_add_factory(mounts, "/tflow-vstream", factory);
+
+    char mount_name[256] = { 0 };
+    if (cfg->mount_name.v.str) {
+        snprintf(mount_name, sizeof(mount_name) - 1, "/%s", cfg->mount_name.v.str);
+    }
+    else {
+        snprintf(mount_name, sizeof(mount_name) - 1, "/tflow-vstream");
+    }
+    gst_rtsp_mount_points_add_factory(mounts, mount_name, factory);
 
     /* don't need the ref to the mounts anymore */
     g_object_unref(mounts);

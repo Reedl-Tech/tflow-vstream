@@ -10,7 +10,7 @@
 
 #include "tflow-ctrl-vstream-ui.hpp"
 
-#include "streamer-udp/tflow-udp-vstreamer-cfg.hpp"
+#include "streamer-rtp/tflow-rtp-vstreamer-cfg.hpp"
 #include "streamer-ws/tflow-ws-vstreamer-cfg.hpp"
 #include "streamer-rtsp/tflow-rtsp-vstreamer-cfg.hpp"
 
@@ -68,17 +68,21 @@ public:
 
     struct cfg_streaming {
         tflow_cmd_field_t   head;
+        tflow_cmd_field_t   capture_en;
+        tflow_cmd_field_t   capture_bump;
         tflow_cmd_field_t   type;
         tflow_cmd_field_t   src;
-        tflow_cmd_field_t   udp_streamer;
+        tflow_cmd_field_t   rtp_streamer;
         tflow_cmd_field_t   ws_streamer;
         tflow_cmd_field_t   rtsp_streamer;
         tflow_cmd_field_t   eomsg;
     } cmd_flds_cfg_streaming = {
         TFLOW_CMD_HEAD("streaming"),
+        .capture_en    = { "capture_en",   CFT_NUM, 0, {.num = 1}, &ui_switch_def },
+        .capture_bump  = { "capture_bump", CFT_NUM, 0, {.num = 0}, &ui_butt_def},
         .type          = { "streaming_type", CFT_NUM, 0, {.num = STREAMING_TYPE_DIS }, &ui_streaming_type },
         .src           = { "streaming_src",  CFT_NUM, 0, {.num = VIDEO_SRC_PROC }, &ui_video_src },
-        .udp_streamer  = { "udp_streamer",   CFT_REF, 0, {.ref = &tflow_udp_streamer_cfg.cmd_flds_cfg_udp_streamer.head} /* , &ui_group_def */},   
+        .rtp_streamer  = { "rtp_streamer",   CFT_REF, 0, {.ref = &tflow_rtp_streamer_cfg.cmd_flds_cfg_rtp_streamer.head} /* , &ui_group_def */},   
         .ws_streamer   = { "ws_streamer",    CFT_REF, 0, {.ref = &tflow_ws_streamer_cfg.cmd_flds_cfg_ws_streamer.head  }, &ui_group_def},   
         .rtsp_streamer = { "rtsp_streamer",  CFT_REF, 0, {.ref = &tflow_rtsp_streamer_cfg.cmd_flds_cfg_rtsp_streamer.head  }, &ui_group_def},   
         TFLOW_CMD_EOMSG

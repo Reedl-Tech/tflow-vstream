@@ -3,5 +3,7 @@
 
 #define RTSP_STREAMER 1
 #define WS_STREAMER   1
-#define UDP_STREAMER 0
+#define RTP_STREAMER  1
+
+#define FRAME_DELAY_PROFILE 0
 

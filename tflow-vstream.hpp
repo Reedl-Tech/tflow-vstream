@@ -16,7 +16,7 @@
 #include "streamer-rtsp/tflow-rtsp-vstreamer.hpp"
 #include "streamer-ws/tflow-ws-vstreamer.hpp"
 
-#include "streamer-udp/tflow-udp-vstreamer.hpp"
+#include "streamer-rtp/tflow-rtp-vstreamer.hpp"
 
 class InFrameJP {
 public:
@@ -84,7 +84,7 @@ public:
     GSource* vdump_timeout_src;
 
     TFlowWsVStreamer *ws_streamer;
-    TFlowUDPVStreamer* udp_streamer;
+    TFlowRTPVStreamer* rtp_streamer;
     TFlowRTSPVStreamer* rtsp_streamer;
 
 private:
