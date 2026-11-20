@@ -1,36 +1,26 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.12.35527.113
+# Visual Studio Version 18
+VisualStudioVersion = 18.7.11919.86 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tflow-vstream-vsproj", "tflow-vstream-vsproj.vcxproj", "{CF523D96-426A-4C8D-A815-48AC585E30FC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		6.1-Mickledore|ARM = 6.1-Mickledore|ARM
 		6.1-Mickledore|ARM64 = 6.1-Mickledore|ARM64
-		6.1-Mickledore|x64 = 6.1-Mickledore|x64
-		6.1-Mickledore|x86 = 6.1-Mickledore|x86
-		6.6-8dev|ARM = 6.6-8dev|ARM
 		6.6-8dev|ARM64 = 6.6-8dev|ARM64
-		6.6-8dev|x64 = 6.6-8dev|x64
-		6.6-8dev|x86 = 6.6-8dev|x86
+		6.6-8dev-Fixar|ARM64 = 6.6-8dev-Fixar|ARM64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{CF523D96-426A-4C8D-A815-48AC585E30FC}.6.1-Mickledore|ARM.ActiveCfg = 6.1-Mickledore|ARM
 		{CF523D96-426A-4C8D-A815-48AC585E30FC}.6.1-Mickledore|ARM64.ActiveCfg = 6.1-Mickledore|ARM64
 		{CF523D96-426A-4C8D-A815-48AC585E30FC}.6.1-Mickledore|ARM64.Build.0 = 6.1-Mickledore|ARM64
 		{CF523D96-426A-4C8D-A815-48AC585E30FC}.6.1-Mickledore|ARM64.Deploy.0 = 6.1-Mickledore|ARM64
-		{CF523D96-426A-4C8D-A815-48AC585E30FC}.6.1-Mickledore|x64.ActiveCfg = 6.1-Mickledore|x64
-		{CF523D96-426A-4C8D-A815-48AC585E30FC}.6.1-Mickledore|x86.ActiveCfg = 6.1-Mickledore|x86
-		{CF523D96-426A-4C8D-A815-48AC585E30FC}.6.6-8dev|ARM.ActiveCfg = 6.6-8dev|ARM
 		{CF523D96-426A-4C8D-A815-48AC585E30FC}.6.6-8dev|ARM64.ActiveCfg = 6.6-8dev|ARM64
 		{CF523D96-426A-4C8D-A815-48AC585E30FC}.6.6-8dev|ARM64.Build.0 = 6.6-8dev|ARM64
 		{CF523D96-426A-4C8D-A815-48AC585E30FC}.6.6-8dev|ARM64.Deploy.0 = 6.6-8dev|ARM64
-		{CF523D96-426A-4C8D-A815-48AC585E30FC}.6.6-8dev|x64.ActiveCfg = 6.1-Mickledore|x64
-		{CF523D96-426A-4C8D-A815-48AC585E30FC}.6.6-8dev|x64.Build.0 = 6.1-Mickledore|x64
-		{CF523D96-426A-4C8D-A815-48AC585E30FC}.6.6-8dev|x64.Deploy.0 = 6.1-Mickledore|x64
-		{CF523D96-426A-4C8D-A815-48AC585E30FC}.6.6-8dev|x86.ActiveCfg = 6.6-8dev|x86
+		{CF523D96-426A-4C8D-A815-48AC585E30FC}.6.6-8dev-Fixar|ARM64.ActiveCfg = 6.6-8dev-Fixar|ARM64
+		{CF523D96-426A-4C8D-A815-48AC585E30FC}.6.6-8dev-Fixar|ARM64.Build.0 = 6.6-8dev-Fixar|ARM64
+		{CF523D96-426A-4C8D-A815-48AC585E30FC}.6.6-8dev-Fixar|ARM64.Deploy.0 = 6.6-8dev-Fixar|ARM64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

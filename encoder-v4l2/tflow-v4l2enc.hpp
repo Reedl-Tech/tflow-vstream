@@ -12,7 +12,8 @@
 class  TFlowEnc {
 public:
 
-    TFlowEnc(int w, int h, const TFlowEncCfg::cfg_v4l2_enc *v4l2_enc_cfg,
+    TFlowEnc(int w, int h, uint32_t fmt, 
+        const TFlowEncCfg::cfg_v4l2_enc *v4l2_enc_cfg,
         std::function<int(TFlowBuf &buf)> _app_onFrameEncoded);
 
     ~TFlowEnc();
@@ -54,6 +55,7 @@ public:
     enum v4l2_buf_type output_buf_type;      //  9 - V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE
     int width;
     int height;
+    uint32_t fmt;                            // 
 
     int frames_encoded;
     uint64_t encoded_bytes;
@@ -73,7 +75,7 @@ public:
 
     std::function<int(TFlowBuf &buf)> app_onFrameEncoded;
 
-    // Templates used on DQBUF
+    // Templates used for DQBUF only. For enque v4l2 from TFlowBuf are in use
     struct v4l2_buffer dqbuf_out;
     struct v4l2_plane dqbuf_out_plane[8];
 

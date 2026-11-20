@@ -68,7 +68,7 @@ public:
         .dropdown = {.val = (const char **)&bitrate_mode_entries }
     };
 
-    std::vector<int> hevc_qp_value = {0, 51};
+    std::vector<int> hevc_qp_value = {10, 45};
     struct TFlowCtrlUI::uictrl ui_sl2_hevc_qp = {
         .label = "HEVC QP",
         .type = TFlowCtrlUI::SLIDER2,

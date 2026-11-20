@@ -142,8 +142,24 @@ void TFlowEnc::EncThread()
 
             if (!ioctl(enc_dev_fd, VIDIOC_DQBUF, &dqbuf_in)) {
                 assert(dqbuf_in.index < input_bufs.size());
-                TFlowBuf &buf = input_bufs[dqbuf_in.index];
-                buf.state = TFlowBuf::BUF_STATE_FREE;
+                // The buffer will be found by the timestamp upon encoding 
+                // completed. Then input AUX data will be copied to output 
+                // buffer and input buffer marked as free.
+#if FRAME_DELAY_PROFILE
+                TFlowBuf& buf = input_bufs[dqbuf_in.index];
+
+                PRESC(0x1F) {
+                    struct timespec buf_ts;
+                    struct timespec now_ts;
+                    buf_ts.tv_sec  = buf.ts.tv_sec;
+                    buf_ts.tv_nsec = buf.ts.tv_usec * 1000;
+
+                    clock_gettime(CLOCK_MONOTONIC, &now_ts);
+                    double dt = TFlowPerfMon::diff_timespec_msec(&now_ts, &buf_ts);
+                    g_critical("== 3 == Frame TS Encoded           [%d] %f (%d, %d)", 
+                        dqbuf_in.sequence, dt, buf_ts.tv_nsec, now_ts.tv_nsec);
+                }
+#endif
             }
             else {
                 int err = errno;
@@ -168,16 +184,30 @@ void TFlowEnc::EncThread()
                 TFlowBuf &buf = output_bufs[dqbuf_out.index];
                 buf.v4l2_buf.m.planes->bytesused = dqbuf_out.m.planes->bytesused;
                 buf.v4l2_buf.flags = dqbuf_out.flags;
-                buf.v4l2_buf.sequence = dqbuf_out.sequence;
+                //buf.v4l2_buf.timestamp = dqbuf_out.timestamp;
+                //buf.v4l2_buf.sequence = dqbuf_out.sequence;
                 buf.state = TFlowBuf::BUF_STATE_APP;
-
-
+                buf.ts = dqbuf_out.timestamp;
+                // buf.sequence = dqbuf_out.sequence;  // V4L2 sequence doesn't correspond to our sequence 
+                                                       //  and not propogated via an enqueued buffer.
                 if (buf.v4l2_buf.m.planes->bytesused) {
                     updateStatistics(buf.v4l2_buf.m.planes->bytesused);
+#if FRAME_DELAY_PROFILE
+                    PRESC(0x1F) {
+                        struct timespec buf_ts;
+                        struct timespec now_ts;
+                        buf_ts.tv_sec = buf.ts.tv_sec;
+                        buf_ts.tv_nsec = buf.ts.tv_usec * 1000;
+
+                        clock_gettime(CLOCK_MONOTONIC, &now_ts);
+                        double dt = TFlowPerfMon::diff_timespec_msec(&now_ts, &buf_ts);
+                        g_critical("== 4 == Frame TS Encoded ready     [%d] %f (%d, %d)", dqbuf_out.sequence, dt, buf_ts.tv_nsec, now_ts.tv_nsec);
+                    }
+#endif
 
                     onOutputReady(buf);
 #if CODE_BROWSE
-                    TFlowUDPVStreamer::onFrameEncoded(buf);
+                    TFlowRTPVStreamer::onFrameEncoded(buf);
                         TFlowEnc::enqueueOutputBuffer(TFlowBuf &buf)
 #endif
                 }
@@ -252,13 +282,41 @@ int TFlowEnc::onInputReleased(TFlowBuf& buf)
 int TFlowEnc::onOutputReady(TFlowBuf& buf)
 {
     assert(buf.state == TFlowBuf::BUF_STATE_APP);
+    int buf_matched = 0;
+
+    buf.aux_data_len = 0;
+    memset(buf.aux_data, 0xCC, sizeof(buf.aux_data));
+
+    for (auto& b : input_bufs) {
+        // For all INPUT buffers currently owned by the encodr driver find the 
+        // one which corresponds to the OUTPUT buffer. In theory their index must 
+        // match, but needs to be double checked as encoder sometime generate an
+        // weird events (see EncThread() "NOK" and "Catch me" log message
+        if (b.state != TFlowBuf::BUF_STATE_DRIVER) continue;
+
+        if (buf.ts.tv_usec != b.ts.tv_usec || 
+            buf.ts.tv_sec != b.ts.tv_sec) continue;
+
+        if (b.index != buf.index) {
+            g_info("enc in/out index mismatch");
+        }
+
+        memcpy(buf.aux_data, b.aux_data, b.aux_data_len);
+        buf.aux_data_len = b.aux_data_len;
+        buf.sequence = b.sequence;
+
+        b.state = TFlowBuf::BUF_STATE_FREE;
+        buf_matched = 1;
+        break;
+    }
+    assert(buf_matched);
 
     // Application callback here
     if (app_onFrameEncoded) {
         app_onFrameEncoded(buf);
 #if CODE_BROWSE
     TFlowWSVStreamer::onFrameEncoded(buf);
-    TFlowUDPVStreamer::onFrameEncoded(buf);
+    TFlowRTPVStreamer::onFrameEncoded(buf);
     TFlowRTSPVStreamer::onFrameEncoded(buf);
 #endif
     }
@@ -298,12 +356,6 @@ TFlowBuf* TFlowEnc::getFreeInputBuffer()
 
 int TFlowEnc::enqueueOutputBuffer(TFlowBuf &buf)
 {
-    // TODO: Check timestamp. In theory it should be from input buffer
-    //struct timespec tp;
-    //clock_gettime(CLOCK_MONOTONIC, &tp);
-    //buf.v4l2_buf.timestamp.tv_sec = (uint32_t)tp.tv_sec; 
-    //buf.v4l2_buf.timestamp.tv_usec = tp.tv_nsec / 1000;
-
     buf.v4l2_buf.flags = 0;
     buf.v4l2_buf.m.planes[0].bytesused = 0;
     buf.v4l2_buf.m.planes[0].data_offset = 0;
@@ -326,35 +378,17 @@ int TFlowEnc::enqueueInputBuffer(TFlowBuf &buf)
 
     assert(buf.state == TFlowBuf::BUF_STATE_APP);
 
-    {
-        static int len = 0;
-        if (len == 0) len = buf.v4l2_buf.m.planes[0].length;
-
-        // AV: ====
-        // Paranoia. Check buffer length changed. Delme after debug
-        assert(len == buf.v4l2_buf.m.planes[0].length);
-    }
-
     // In assumption an application always provides full frame
     buf.v4l2_buf.m.planes[0].bytesused = buf.v4l2_buf.m.planes[0].length;
     buf.v4l2_buf.m.planes[0].data_offset = 0;
     buf.v4l2_buf.flags = 0;
 
-    clock_gettime(CLOCK_MONOTONIC, &tp);
-    buf.v4l2_buf.timestamp.tv_sec = (uint32_t)tp.tv_sec; 
-    buf.v4l2_buf.timestamp.tv_usec = tp.tv_nsec / 1000;
+    // Copy TFlowBuf timestamp to input V4L2 buffer, upon encoding this timestamp
+    // will be copied to the encoded V4L2 buffer and we will match input TFlowBuf
+    // by this timestamp.
+    buf.v4l2_buf.timestamp = buf.ts; 
     buf.v4l2_buf.flags |= V4L2_BUF_FLAG_TIMESTAMP_COPY;
-
-
-    //memset(&buffer, 0, sizeof(buffer));
-    //memset(&plane, 0, sizeof(plane));
-    //buffer.index = 0;
-    //buffer.type = input_fmt_type;
-    //buffer.memory = V4L2_MEMORY_MMAP;
-    //buffer.length = 1;
-    //buffer.m.planes = plane;
-    //buffer.m.planes->bytesused = 0x35280;
-    //buffer.m.planes->data_offset = 0;
+//    buf.v4l2_buf.sequence = buf.sequence;     // Sequency number won't be copied to encoded buffer
 
     // Put the buffer to driver's queue
     if (-1 == ioctl(enc_dev_fd, VIDIOC_QBUF, &buf.v4l2_buf)) {
@@ -362,7 +396,19 @@ int TFlowEnc::enqueueInputBuffer(TFlowBuf &buf)
         return -1;
     }
     buf.state = TFlowBuf::BUF_STATE_DRIVER;
+#if FRAME_DELAY_PROFILE
+    PRESC(0x1F) {
+        struct timespec buf_ts;
+        struct timespec now_ts;
+        buf_ts.tv_sec   = buf.ts.tv_sec;
+        buf_ts.tv_nsec  = buf.ts.tv_usec * 1000;
 
+        clock_gettime(CLOCK_MONOTONIC, &now_ts);
+        double dt = TFlowPerfMon::diff_timespec_msec(&now_ts, &buf_ts);
+        g_critical("== 2 == Frame TS on Encode         [%d] %f (%d, %d)",
+            buf.sequence, dt, buf_ts.tv_nsec, now_ts.tv_nsec);
+    }
+#endif
     return 0;
 }
 
@@ -513,22 +559,22 @@ int TFlowEnc::setFrameInterval()
 
 int TFlowEnc::setInputFormat()
 {
-    v4l2_format fmt = {0};
+    v4l2_format v4l2_fmt = {0};
 
-    fmt.type = input_buf_type;
-    if (-1 == ioctl(enc_dev_fd, VIDIOC_G_FMT, &fmt)) {
+    v4l2_fmt.type = input_buf_type;
+    if (-1 == ioctl(enc_dev_fd, VIDIOC_G_FMT, &v4l2_fmt)) {
         g_warning("Can't VIDIOC_G_FMT (%d) - %s", errno, strerror(errno));
         return -1;
     }
 
     // TODO: match format with one from ENUM
-    fmt.fmt.pix_mp.width = width;
-    fmt.fmt.pix_mp.height = height;
-    fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_ABGR32; // V4L2_PIX_FMT_BGR32;
-//    fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12; // V4L2_PIX_FMT_ABGR32; // V4L2_PIX_FMT_BGR32;
-//    fmt.fmt.pix_mp.field = V4L2_FIELD_NONE;
+    // Set parameters passed as inputs to constructor
+    v4l2_fmt.fmt.pix_mp.width = width;
+    v4l2_fmt.fmt.pix_mp.height = height;
+    v4l2_fmt.fmt.pix_mp.pixelformat = fmt;    // V4L2_PIX_FMT_BGR32; V4L2_PIX_FMT_NV12
+//    v4l2_fmt.v4l2_fmt.pix_mp.field = V4L2_FIELD_NONE;
 
-    if (-1 == ioctl(enc_dev_fd, VIDIOC_S_FMT, &fmt)) {
+    if (-1 == ioctl(enc_dev_fd, VIDIOC_S_FMT, &v4l2_fmt)) {
         g_critical("Can't VIDIOC_S_FMT (%d) - %s", errno, strerror(errno));
         return -1;
     }
@@ -536,7 +582,7 @@ int TFlowEnc::setInputFormat()
     // Encoder may request another plane WxH despite enumerated frame sizes.
     // As Encoder gets frame's configuration from a parent module (for ex. TFlowDashboard),
     // please modify one's configuration accordingly.
-    // assert(width ==  fmt.fmt.pix_mp.plane_fmt[0].bytesperline); <-- not valid for ABGR format
+    // assert(width ==  v4l2_fmt.v4l2_fmt.pix_mp.plane_fmt[0].bytesperline); <-- not valid for ABGR format
 
     return 0;
 }
@@ -696,7 +742,6 @@ int TFlowEnc::Init()
     enumFrameInervals();
     rc = setFrameInterval();
     if (rc) return rc;
-
 
     json11::Json::object j_dummy;
     rc = onConfig(j_dummy, true);
@@ -873,7 +918,8 @@ TFlowEnc::~TFlowEnc()
 
 }
 
-TFlowEnc::TFlowEnc(int _w, int _h, const TFlowEncCfg::cfg_v4l2_enc *v4l2_enc_cfg,
+TFlowEnc::TFlowEnc(int _w, int _h, uint32_t _fmt,
+    const TFlowEncCfg::cfg_v4l2_enc *v4l2_enc_cfg,
     std::function<int(TFlowBuf &buf)> _app_onFrameEncoded) :
     app_onFrameEncoded(_app_onFrameEncoded)
 {
@@ -902,7 +948,7 @@ TFlowEnc::TFlowEnc(int _w, int _h, const TFlowEncCfg::cfg_v4l2_enc *v4l2_enc_cfg
     enc_thread_exit = 0;
     drain_event = eventfd(0, 0);
 
-    // fmt type set on Init()
+    // v4l2_fmt type set on Init()
     input_buf_type = (enum v4l2_buf_type)0;
     output_buf_type = (enum v4l2_buf_type)0;
 
@@ -910,6 +956,7 @@ TFlowEnc::TFlowEnc(int _w, int _h, const TFlowEncCfg::cfg_v4l2_enc *v4l2_enc_cfg
     //       or check on Encoder init() upon frame sizes enumeration
     width = _w;
     height = _h;
+    fmt = _fmt;
 
     // Template used on DQBUF 
     memset(&dqbuf_out, 0, sizeof(dqbuf_out));

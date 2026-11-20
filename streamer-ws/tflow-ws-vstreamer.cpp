@@ -234,6 +234,15 @@ void TFlowWsVStreamer::fillBuffer(TFlowBuf& buf_enc, const TFlowBuf& buf_in)
     data_buff = (uint8_t*)buf_in.start;
     data_buff_len = buf_in.length;
 
+    // AV: Should be ommitted in case of AUX data  become much bigger.
+    //     For ex. passing as an argument, as buf_in also holds copy of AUX data
+    //     This excessive copy can be ommited.
+    memcpy(buf_enc.aux_data, buf_in.aux_data, buf_in.aux_data_len);
+    buf_enc.aux_data_len = buf_in.aux_data_len;
+
+    buf_enc.ts = buf_in.ts;
+    buf_enc.sequence = buf_in.sequence;
+
     if (in_frame_fmt == V4L2_PIX_FMT_NV12) {
         // Streamer uses NV12 as an input format
         g_critical("WsVStreamer: bad frame fmt 0x%04X", in_frame_fmt);
@@ -285,6 +294,8 @@ int TFlowWsVStreamer::restart()
     TFlowEncCfg::cfg_v4l2_enc *v4l2_enc_cfg = 
         (TFlowEncCfg::cfg_v4l2_enc*)cfg->v4l2_enc.v.ref;
 
+    uint32_t enc_frame_fmt;
+
     stop();
 
     if (v4l2_enc_cfg->codec.v.num == TFlowEncUI::ENC_CODEC_H264) {
@@ -299,9 +310,19 @@ int TFlowWsVStreamer::restart()
         assert(0);
     }
 
+    switch (in_frame_fmt) {
+    case V4L2_PIX_FMT_GREY: 
+        enc_frame_fmt = V4L2_PIX_FMT_NV12;
+        break;
+    case V4L2_PIX_FMT_ABGR32:
+        enc_frame_fmt = V4L2_PIX_FMT_ABGR32;
+    default:
+        assert(0);
+    }
+    
     // ATT: Encoder can be reconfigured in runtime, i.e. recreated. Thus, 
     //      DO NOT assume pointer is always exists.
-    encoder = new TFlowEnc(frame_width, frame_height, v4l2_enc_cfg,
+    encoder = new TFlowEnc(frame_width, frame_height, enc_frame_fmt, v4l2_enc_cfg,
         std::bind(&TFlowWsVStreamer::onFrameEncoded, this, std::placeholders::_1));
 
     if (in_frame_fmt == V4L2_PIX_FMT_GREY) {
@@ -420,6 +441,7 @@ void TFlowWsVStreamer::onConfigValidate(json11::Json::object& j_out_params,
 int TFlowWsVStreamer::onConfig(json11::Json::object& j_out_params)
 {
     // Apply WebSocket streamer configuration here
+
 
     if (encoder && cfg->v4l2_enc.flags & TFlowCtrl::FIELD_FLAG::CHANGED) {
 

@@ -16,6 +16,9 @@
 #include "tflow-perfmon.hpp"
 #include "tflow-buf-cli.hpp"
 
+extern int g_dbg_consume_bump;
+extern int g_dbg_consume_en;
+
 static gboolean tflow_buf_cli_on_idle_once(gpointer data);
 
 #define TFLOWBUFCLI_SIGNATURE "VStream"
@@ -126,9 +129,11 @@ int TFlowBufCli::onSrcFDShm(TFlowBufPck::pck_src_info* msg_src_info, int shm_fd)
         }
         shm_wr_ptr += sizeof(uint32_t);
 
-        // Aux data
-        tflow_buf.aux_data = shm_wr_ptr;
+        // Copy AUX data as it will be passed through encoding to encoded packet,
+        // while source packet needs to be released.
+        memcpy(tflow_buf.aux_data, shm_wr_ptr, aux_data_len.quot);
         tflow_buf.aux_data_len = aux_data_len.quot;
+
         shm_wr_ptr += aux_data_len.quot;
 
         // Magic 3
@@ -279,7 +284,28 @@ int TFlowBufCli::onMsg()
 		pending_buf_request--;
 
         onConsume(msg_consume);      // Nothing todo here. Update statistics?
+
+#if FRAME_DELAY_PROFILE
+        if (g_dbg_consume_en) { // For panorama profiling
+            if (app_onFrame) app_onFrame(src_id, msg_consume);
+        }
+        else if (g_dbg_consume_bump) {
+            g_dbg_consume_bump = 0;
+            g_critical("================ Bump ========");
+            TFlowBuf& tflow_buf_in = tflow_bufs.at(msg_consume->buff_index);
+            double frame_mean = 0;
+            for (int i = 0; i < tflow_buf_in.length; i++) {
+                frame_mean += ((uint8_t*)tflow_buf_in.start)[i];
+            }
+            frame_mean = frame_mean / tflow_buf_in.length;
+            g_critical("================ Mean %f ========", frame_mean);
+
+            if (app_onFrame) app_onFrame(src_id, msg_consume);
+        }
+#else 
         if (app_onFrame) app_onFrame(src_id, msg_consume);
+#endif
+
 #if CODE_BROWSE
         TFlowVStream::onFrameStreaming(msg_consume);
         TFlowVStream::onFrameRecording(msg_consume);
@@ -294,6 +320,9 @@ int TFlowBufCli::onMsg()
             // pending requests left, so send additional one explicitly.
             // AV:=== should never hit here as packets not held by encoder, 
             //        but a content is copied instead.
+            // AV: ^^^ probably needs to be reconsidered as AUX data might be 
+            //     held to avoid excessive copy between packets. Not critical
+            //     as long as AUX data is small enough.
             assert(0);
             sendRedeem(-1);        }
         break;

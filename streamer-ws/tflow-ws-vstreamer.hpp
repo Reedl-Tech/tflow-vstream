@@ -35,8 +35,8 @@ private:
     int restart();  // The same as start,  but without frame configuration change. 
                     // Is used on encoder configuration change.
 
-    TFlowBuf* getFreeBuffer();
-    void fillBuffer(TFlowBuf& buf_enc, const TFlowBuf& buf_in);
+    TFlowBuf* getFreeBuffer();                                      // TODO: rework required. Must be part of TFlowEnc
+    void fillBuffer(TFlowBuf& buf_enc, const TFlowBuf& buf_in);     // TODO: rework required. Must be part of TFlowEnc
     int consumeBuffer(TFlowBuf& buf);
 
     uint32_t packet_type_key;
@@ -46,9 +46,9 @@ private:
 
     int frame_width;
     int frame_height;
-    uint32_t in_frame_fmt;  // Streamer's input frame format may differs from 
-                            // Encoder input format. Format conversion will be
-                            // performed on data buffer copy.
+    uint32_t in_frame_fmt;  // Streamer's input frame format may differs from the
+                            // Encoder's input format. Format conversion will be
+                            // performed on data buffer copy (see fillBuffer()).
 
     // HEVC/H264 encoder
     int onFrameEncoded(TFlowBuf &buf);
