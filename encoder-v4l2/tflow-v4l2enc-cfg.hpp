@@ -6,8 +6,8 @@ class TFlowEncUI : public TFlowCtrlUI {
 public:
 
     enum ENC_CODEC {
-        ENC_CODEC_H265 = 0,
-        ENC_CODEC_H264 = 1,
+        ENC_CODEC_H264 = 0,
+        ENC_CODEC_H265 = 1,
         ENC_CODEC_LAST = 2,
         ENC_CODEC_NUM  = ENC_CODEC_LAST+1
     };

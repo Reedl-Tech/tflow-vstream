@@ -21,6 +21,7 @@ public:
     int consumeBuffer(TFlowBuf& buf);
     void onIdle_no_ts();
     void onIdle(struct timespec now_ts);
+    void onFrame(const TFlowBuf& buf_in);
 
     int pck_seq;
     TFlowEnc *encoder;
@@ -51,7 +52,7 @@ private:
     struct sockaddr_in local_addr;
     struct sockaddr_in remote_addr;
 
-    struct iovec enc_iov[2];    // [0] - outr header; [1] - pure encoder
+    struct iovec enc_iov[10];    // [0] - outr header; [1] aux; [2] - pure encoder
     struct msghdr enc_mh;
 };
 

@@ -78,9 +78,9 @@ public:
         TFLOW_CMD_HEAD("streaming"),
         .type          = { "streaming_type", CFT_NUM, 0, {.num = STREAMING_TYPE_DIS }, &ui_streaming_type },
         .src           = { "streaming_src",  CFT_NUM, 0, {.num = VIDEO_SRC_PROC }, &ui_video_src },
-        .udp_streamer  = { "udp_streamer",   CFT_REF, 0, {.ref = &tflow_udp_streamer_cfg.cmd_flds_cfg_udp_streamer.head} /* , &ui_group_def */},   
-        .ws_streamer   = { "ws_streamer",    CFT_REF, 0, {.ref = &tflow_ws_streamer_cfg.cmd_flds_cfg_ws_streamer.head  }, &ui_group_def},   
-        .rtsp_streamer = { "rtsp_streamer",  CFT_REF, 0, {.ref = &tflow_rtsp_streamer_cfg.cmd_flds_cfg_rtsp_streamer.head  }, &ui_group_def},   
+        .udp_streamer  = { "udp_streamer",   CFT_REF, 0, {.ref = &tflow_udp_streamer_cfg.cmd_flds_cfg_udp_streamer.head   }, &ui_group_def },   
+        .ws_streamer   = { "ws_streamer",    CFT_REF, 0, {.ref = &tflow_ws_streamer_cfg.cmd_flds_cfg_ws_streamer.head     }, &ui_group_def},   
+        .rtsp_streamer = { "rtsp_streamer",  CFT_REF, 0, {.ref = &tflow_rtsp_streamer_cfg.cmd_flds_cfg_rtsp_streamer.head }, &ui_group_def},   
         TFLOW_CMD_EOMSG
     };
 

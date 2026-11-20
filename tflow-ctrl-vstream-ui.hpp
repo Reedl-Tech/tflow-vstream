@@ -11,7 +11,8 @@ public:
         STREAMING_TYPE_DIS  = 0,
         STREAMING_TYPE_WS   = 1,
         STREAMING_TYPE_RTSP = 2,
-        STREAMING_TYPE_LAST = 3,
+        STREAMING_TYPE_UDP  = 3,
+        STREAMING_TYPE_LAST = 4,
         STREAMING_TYPE_NUM = STREAMING_TYPE_LAST + 1
     };
 
@@ -19,6 +20,7 @@ public:
         [STREAMING_TYPE_DIS ] = "Disabled",
         [STREAMING_TYPE_WS  ] = "WebSocket",
         [STREAMING_TYPE_RTSP] = "RTSP",
+        [STREAMING_TYPE_UDP ] = "UDP",
         [STREAMING_TYPE_LAST] = nullptr
     };
 

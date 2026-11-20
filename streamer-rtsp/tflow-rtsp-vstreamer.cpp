@@ -187,8 +187,15 @@ int TFlowRTSPVStreamer::StartRTSP()
     factory = gst_rtsp_media_factory_new();
     gst_object_ref(factory);    // Will be cleaned on Stop()
 
-    // Use default port - 8554
-    // g_object_set (server, "service", "554", NULL);
+    char port_str[16] = { 0 };
+    if (cfg->port.v.num) {
+        snprintf(port_str, sizeof(port_str) - 1, "%d", cfg->port.v.num);
+        g_object_set (server, "service", port_str, NULL);
+    }
+    else {
+        snprintf(port_str, sizeof(port_str) - 1, "%d", 8554);
+        // Use default port - 8554
+    }
 
     if (cfg->enc_type.v.num == TFlowRTSPStreamerUI::ENC_TYPE_H265) {
         gst_rtsp_media_factory_set_launch(factory,
@@ -197,7 +204,7 @@ int TFlowRTSPVStreamer::StartRTSP()
 //            "( appsrc  name=vstreamer ! vpuenc_hevc ! rtph265pay name=pay0 pt=96 )");    // GST OK. 16% CPU load @ 50FPS
     }
     else {
-        
+                                        
         gst_rtsp_media_factory_set_launch(factory,
             "( appsrc  name=vstreamer  ! vpuenc_h264 ! rtph264pay name=pay0 pt=96 )");   // GST OK. 22 % CPU load @ 50FPS
     }
@@ -210,7 +217,14 @@ int TFlowRTSPVStreamer::StartRTSP()
     /* GST: Ownership is taken of the reference on factory so that factory 
      *      should not be used after calling this function. 
      */
-    gst_rtsp_mount_points_add_factory(mounts, "/tflow-vstream", factory);
+    char mount_name[256] = { 0 }; 
+    if (cfg->mount_name.v.str) {
+        snprintf(mount_name, sizeof(mount_name) - 1, "/%s", cfg->mount_name.v.str);
+    }
+    else {
+        snprintf(mount_name, sizeof(mount_name) - 1, "/tflow-vstream");
+    }
+    gst_rtsp_mount_points_add_factory(mounts, mount_name, factory);
 
     /* don't need the ref to the mounts anymore */
     g_object_unref(mounts);
@@ -221,7 +235,7 @@ int TFlowRTSPVStreamer::StartRTSP()
             must be used and then attached to the context */
 
     g_info("TFlowRTSPStreamer: Server started at "\
-           "rtsp://127.0.0.1:8554/tflow-vstream");
+           "rtsp://127.0.0.1:%s/%s", port_str, mount_name);
 
     /* WIN10 RTSP Client: 
         gst-launch-1.0.exe rtspsrc location=rtsp://192.168.2.2:8554/tflow-vstream latency=0 ! queue ! rtph265depay ! h265parse ! d3d11h265dec ! glimagesink sync=false

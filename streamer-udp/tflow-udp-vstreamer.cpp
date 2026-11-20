@@ -119,7 +119,7 @@ int TFlowUDPVStreamer::OpenUDP()
         return -1;
 	}
 
-	g_info("TFlowUDPStreamer: Bond sucessfully on %s:%d", 
+	g_info("TFlowUDPStreamer: Bond sucessfully on    %s:%d", 
         addr_str, ntohs(local_addr.sin_port));
 
     return 0;
@@ -127,6 +127,8 @@ int TFlowUDPVStreamer::OpenUDP()
 
 int TFlowUDPVStreamer::onFrameEncoded(TFlowBuf &tflow_buf)
 {
+    int iov_num = 0;
+
     assert(tflow_buf.state == TFlowBuf::BUF_STATE_APP);
 
     size_t enc_buf_len = tflow_buf.v4l2_buf.m.planes->bytesused;
@@ -141,23 +143,31 @@ int TFlowUDPVStreamer::onFrameEncoded(TFlowBuf &tflow_buf)
     struct enc_tlv_s {
         uint32_t magic;
         uint32_t seq;
+        uint32_t aux_len;
         uint32_t packet_type;
-        uint32_t packet_length;
+        uint32_t packet_len;
     } enc_tlv = {
-        .magic = 0x342E5452,
+        .magic = 0x352E5452,            // RT.5
         .seq = (uint32_t)pck_seq++,
+        .aux_len = 0,
         .packet_type = enc_packet_type,
-        .packet_length = (uint32_t)enc_buf_len
+        .packet_len = (uint32_t)enc_buf_len
     };
 #pragma pack(pop)
 
     if (enc_packet_type == 0) goto buf_release;     // Unknown Encoder frame.
 
-    enc_iov[0].iov_base = (caddr_t)&enc_tlv;
-    enc_iov[0].iov_len = sizeof(enc_tlv);
+    enc_iov[iov_num].iov_base = (caddr_t)&enc_tlv;
+    enc_iov[iov_num].iov_len = sizeof(enc_tlv);
+    iov_num++;
    
-    enc_iov[1].iov_base = (caddr_t)tflow_buf.start;
-    enc_iov[1].iov_len = tflow_buf.v4l2_buf.m.planes->bytesused;
+    enc_iov[iov_num].iov_base = (caddr_t)tflow_buf.aux_data;
+    enc_iov[iov_num].iov_len = tflow_buf.aux_data_len;
+    iov_num++;
+
+    enc_iov[iov_num].iov_base = (caddr_t)enc_buf;
+    enc_iov[iov_num].iov_len = enc_buf_len;
+    iov_num++;
 
     enc_mh.msg_control = nullptr;
     enc_mh.msg_controllen = 0;
@@ -166,7 +176,7 @@ int TFlowUDPVStreamer::onFrameEncoded(TFlowBuf &tflow_buf)
     enc_mh.msg_name = (caddr_t)&remote_addr;
     enc_mh.msg_namelen = sizeof(remote_addr);
     enc_mh.msg_iov = enc_iov;
-    enc_mh.msg_iovlen = 2;
+    enc_mh.msg_iovlen = iov_num;
 
     if (sck_fd != -1) {
         int rc = 0;
@@ -299,6 +309,21 @@ TFlowUDPVStreamer::TFlowUDPVStreamer(int _w, int _h,
     addr_nok |= parseCfgAddrPort(&local_addr, udp_streamer_cfg->udp_local_addr.v.c_str);
 
     OpenUDP();
+}
+
+void TFlowUDPVStreamer::onFrame(const TFlowBuf& buf_in)
+{
+    TFlowBuf *buf_enc = getFreeBuffer();
+    if (buf_enc) {
+        memcpy(buf_enc->start, buf_in.start, buf_in.length);
+        consumeBuffer(*buf_enc);
+    }
+    else {
+        static int cnt = 0;
+        PRESC(0x3F) {
+            g_info("TFlowWsVStreamer: can't get free buffer %d. ", cnt++);
+        }
+    }
 }
 
 TFlowUDPVStreamer::~TFlowUDPVStreamer()

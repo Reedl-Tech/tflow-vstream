@@ -457,25 +457,11 @@ void TFlowVStream::onFrameStreaming(int src_id, const TFlowBufPck::pck_consume* 
     if (rtsp_streamer) {
         rtsp_streamer->onFrame(tflow_buf_in);
     }
-
-    if (ws_streamer) {      
+    else if (ws_streamer) {      
         ws_streamer->onFrame(tflow_buf_in);
     }
-
-    if (udp_streamer) {      
-        //const uint8_t* buff;
-        //size_t buff_len;
-
-        //TFlowBuf* dashboard_buf = udp_streamer ? udp_streamer->getFreeBuffer() : nullptr;
-
-        //if (dashboard_buf) {
-        //    memcpy(dashboard_buf->start, buff, buff_len);
-        //    udp_streamer->consumeBuffer(*dashboard_buf);
-        //}
-        //else {
-        //    static int cnt = 0;
-        //    g_info("============== can't get free buffer %d =============", cnt++ );
-        //}
+    else if (udp_streamer) {      
+       udp_streamer->onFrame(tflow_buf_in);
     }
 }
 
@@ -671,7 +657,8 @@ void TFlowVStream::onSrcReadyStreaming(int src_id, const TFlowBufPck::pck_src_in
 
     const TFlowCtrlVStream::cfg_streaming *cfg = &ctrl.cmd_flds_cfg_streaming;
 
-#if RTSP_STREAMER
+// #if RTSP_STREAMER
+//#if WS_STREAMER
     // TODO: ??? Support both streamers WS and RTSP or make them mutally exclusive on build time ?
     //   
     if (cfg->type.v.num == TFlowCtrlVStreamUI::STREAMING_TYPE_RTSP) {
@@ -681,24 +668,20 @@ void TFlowVStream::onSrcReadyStreaming(int src_id, const TFlowBufPck::pck_src_in
 
         rtsp_streamer = new TFlowRTSPVStreamer(src_info->width, src_info->height, rtsp_streamer_cfg);
     }
-#endif
 
-#if WS_STREAMER
-
-    if (cfg->type.v.num == TFlowCtrlVStreamUI::STREAMING_TYPE_WS) {
+    else if (cfg->type.v.num == TFlowCtrlVStreamUI::STREAMING_TYPE_WS) {
         if (ws_streamer) {
             ws_streamer->start(src_info->width, src_info->height, src_info->format);
         }
     }
+    else if (cfg->type.v.num == TFlowCtrlVStreamUI::STREAMING_TYPE_UDP) {
 
-#elif UDP_STREAMER
-    
-    const TFlowUDPStreamerCfg::cfg_udp_streamer* udp_streamer_cfg = 
-        (TFlowUDPStreamerCfg::cfg_udp_streamer*)ctrl.cmd_flds_config.udp_streamer.v.ref;
+        const auto udp_streamer_cfg =
+            (TFlowUDPStreamerCfg::cfg_udp_streamer*)cfg->udp_streamer.v.ref;
 
-    udp_streamer = new TFlowUDPVStreamer(context, dashboard_w, dashboard_h, udp_streamer_cfg);
+        udp_streamer = new TFlowUDPVStreamer(src_info->width, src_info->height, udp_streamer_cfg);
+    }
 
-#endif
 }
 
 
