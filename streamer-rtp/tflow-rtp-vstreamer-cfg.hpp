@@ -34,7 +34,7 @@ public:
         TFlowCtrl::tflow_cmd_field_t   v4l2_enc;
         TFlowCtrl::tflow_cmd_field_t   eomsg;
     } cmd_flds_cfg_rtp_streamer = {
-        TFLOW_CMD_HEAD("UDP Streamer"),
+        TFLOW_CMD_HEAD("RTP Streamer"),
         .udp_local_addr  = { "local_addr",   TFlowCtrl::CFT_STR, 0, {.str = strdup("0.0.0.0:21040")}, &ui_edit_local_addr},
         .udp_remote_addr = { "remote_addr",  TFlowCtrl::CFT_STR, 0, {.str = strdup("192.168.2.10:21040")}, &ui_edit_remote_addr},
         .v4l2_enc        = { "rtp_v4l2_enc", TFlowCtrl::CFT_REF, 0, {.ref = &v4l2_enc.cmd_flds_cfg_v4l2_enc.head}, &ui_group_def},

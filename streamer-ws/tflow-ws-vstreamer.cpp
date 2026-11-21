@@ -267,7 +267,7 @@ void TFlowWsVStreamer::fillBuffer(TFlowBuf& buf_enc, const TFlowBuf& buf_in)
 int TFlowWsVStreamer::consumeBuffer(TFlowBuf& buf)
 {
     // Application returns back our buffer for further processing
-    // Upon encoding onFrameEncoded() callback will be triggered
+    // Upon encoding, onFrameEncoded() callback will be triggered
     if (encoder) {
         encoder->enqueueInputBuffer(buf);
     }
@@ -316,10 +316,11 @@ int TFlowWsVStreamer::restart()
         break;
     case V4L2_PIX_FMT_ABGR32:
         enc_frame_fmt = V4L2_PIX_FMT_ABGR32;
+        break;
     default:
         assert(0);
     }
-    
+                                          
     // ATT: Encoder can be reconfigured in runtime, i.e. recreated. Thus, 
     //      DO NOT assume pointer is always exists.
     encoder = new TFlowEnc(frame_width, frame_height, enc_frame_fmt, v4l2_enc_cfg,

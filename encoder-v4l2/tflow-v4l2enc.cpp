@@ -53,6 +53,7 @@ void TFlowEnc::updateStatistics(uint32_t _encoded_bytes)
 void TFlowEnc::EncThread()
 {
     int rc;
+    int pending_drain = 0;
     struct timespec ts;
 
     g_info("Starting TFlow Video thread...");
@@ -99,6 +100,8 @@ void TFlowEnc::EncThread()
         }
 
         if (rc == 0) {
+            if (pending_drain) enc_thread_exit = 1;
+
             g_critical("V4l2Driver: poll timedout");
             continue;
         } else if (rc < 0 && errno != EINTR && errno != EAGAIN) {
@@ -243,6 +246,10 @@ void TFlowEnc::EncThread()
             eventfd_read(drain_event, &dummy_evt);
 
             // Initiate drain
+            pending_drain = 1;  // In case of frame stream was never started 
+                                // and there is nothing to drain, the drain_completed 
+                                // never happens and the loop can't be terminated.
+
             struct v4l2_encoder_cmd drain_cmd = { 0 };
             drain_cmd.cmd = V4L2_ENC_CMD_STOP;
             int rc = ioctl(enc_dev_fd, VIDIOC_ENCODER_CMD, &drain_cmd);

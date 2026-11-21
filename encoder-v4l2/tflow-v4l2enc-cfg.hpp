@@ -29,8 +29,8 @@ public:
 
 
     const char *enc_codec_entries[ENC_CODEC_NUM] = {
-        [ENC_CODEC_H265 ] = "H.265",
         [ENC_CODEC_H264 ] = "H.264",
+        [ENC_CODEC_H265 ] = "H.265",
         [ENC_CODEC_LAST ] = nullptr 
     };
 

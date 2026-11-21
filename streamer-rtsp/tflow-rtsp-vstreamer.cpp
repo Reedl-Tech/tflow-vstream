@@ -187,8 +187,17 @@ int TFlowRTSPVStreamer::StartRTSP()
     factory = gst_rtsp_media_factory_new();
     gst_object_ref(factory);    // Will be cleaned on Stop()
 
-    
-    char gst_pipeline_str[256] = { 0 };
+    char port_str[16] = { 0 };
+    if (cfg->port.v.num) {
+        snprintf(port_str, sizeof(port_str) - 1, "%d", cfg->port.v.num);
+        g_object_set (server, "service", port_str, NULL);
+    }
+    else {
+        snprintf(port_str, sizeof(port_str) - 1, "%d", 8554);
+        // Use default port - 8554
+    }
+   
+    char gst_pipeline_str[512] = { 0 };
     if (cfg->enc_type.v.num == TFlowRTSPStreamerUI::ENC_TYPE_H265) {
         snprintf(gst_pipeline_str, sizeof(gst_pipeline_str) - 1,
             "( appsrc name=vstreamer %s ! vpuenc_hevc ! rtph265pay name=pay0 pt=96 )");
@@ -213,15 +222,6 @@ int TFlowRTSPVStreamer::StartRTSP()
      *      should not be used after calling this function. 
      */
     char mount_name[256] = { 0 }; 
-    if (cfg->mount_name.v.str) {
-        snprintf(mount_name, sizeof(mount_name) - 1, "/%s", cfg->mount_name.v.str);
-    }
-    else {
-        snprintf(mount_name, sizeof(mount_name) - 1, "/tflow-vstream");
-    }
-    gst_rtsp_mount_points_add_factory(mounts, mount_name, factory);
-
-    char mount_name[256] = { 0 };
     if (cfg->mount_name.v.str) {
         snprintf(mount_name, sizeof(mount_name) - 1, "/%s", cfg->mount_name.v.str);
     }
@@ -328,8 +328,7 @@ void TFlowRTSPVStreamer::onConfigValidate(json11::Json::object& j_out_params,
 int TFlowRTSPVStreamer::onConfig(json11::Json::object& j_out_params)
 {
     if (cfg->fps.flags      & TFlowCtrl::FIELD_FLAG::CHANGED ||
-        cfg->enc_type.flags & TFlowCtrl::FIELD_FLAG::CHANGED ||
-        cfg->crop_en.flags  & TFlowCtrl::FIELD_FLAG::CHANGED) {
+        cfg->enc_type.flags & TFlowCtrl::FIELD_FLAG::CHANGED) {
 
         CloseRTSP();
         StartRTSP();

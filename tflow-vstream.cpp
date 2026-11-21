@@ -741,11 +741,14 @@ int TFlowVStream::setStreamingSrc(TFlowCtrlVStreamUI::VIDEO_SRC src,
     }
 
     if (type == TFlowCtrlVStreamUI::STREAMING_TYPE_WS) {
-        const auto ws_streamer_cfg =
-            (TFlowWSStreamerCfg::cfg_ws_streamer*)ctrl.cmd_flds_cfg_streaming.ws_streamer.v.ref;
+        if (!ws_streamer) {
+            const auto ws_streamer_cfg =
+                (TFlowWSStreamerCfg::cfg_ws_streamer*)ctrl.cmd_flds_cfg_streaming.ws_streamer.v.ref;
 
-        // WebSocket running even if an input source doesn't exist yet.
-        ws_streamer = new TFlowWsVStreamer(ws_streamer_cfg);
+            // WebSocket running even if an input source doesn't exist yet.
+            // Upon Src ready ws_streamer->start will be triggered
+            ws_streamer = new TFlowWsVStreamer(ws_streamer_cfg);
+        }
     }
     else if (type == TFlowCtrlVStreamUI::STREAMING_TYPE_RTSP) {
         // RTSP streamer created on "SRC ready" as it depends on frame format,
