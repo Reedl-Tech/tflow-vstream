@@ -86,7 +86,7 @@ public:
 
 };
 
-class TFlowEncCfg : private TFlowEncUI {
+class TFlowEncCfg : public TFlowEncUI {
 
 public:
     struct cfg_v4l2_enc {
@@ -100,18 +100,22 @@ public:
         TFlowCtrl::tflow_cmd_field_t   bitrate_mode;
         TFlowCtrl::tflow_cmd_field_t   bitrate;
         TFlowCtrl::tflow_cmd_field_t   eomsg;
-    } cmd_flds_cfg_v4l2_enc = {
-        TFLOW_CMD_HEAD("v4l2 encoder"),
-        .codec         = { "codec",        TFlowCtrl::CFT_NUM,  0, {.num = 0},               &ui_dd_enc_codec},
-        .profile       = { "profile",      TFlowCtrl::CFT_NUM,  0, {.num = 0},               &ui_dd_hevc_profile},
-        .qp            = { "qp",           TFlowCtrl::CFT_VNUM, 0, {.vnum = &hevc_qp_value}, &ui_sl2_hevc_qp },
-        .qp_i          = { "qp_i",         TFlowCtrl::CFT_NUM,  0, {.num = 30},              &ui_sl_qp },       // Lower better quality
-        .qp_p          = { "qp_p",         TFlowCtrl::CFT_NUM,  0, {.num = 30},              &ui_sl_qp },
-        .gop_size      = { "gop_size",     TFlowCtrl::CFT_NUM,  0, {.num = 30},              &ui_edit_def },
-        .bitrate_mode  = { "bitrate_mode", TFlowCtrl::CFT_NUM,  0, {.num =  0},              &ui_dd_bitrate_mode },
-        .bitrate       = { "bitrate",      TFlowCtrl::CFT_NUM,  0, {.num = 0x200000},        &ui_edit_def },
+    } cmd_flds_cfg_v4l2_enc = { 
+        // ^^^ in case of multiple instance the field must be hidden by parent class.
+        //     I.e. use the same name.
+        //     Ugly workaround as the WEB engine doesn't support non unique names
+        TFLOW_CMD_HEAD("RTP v4l2 encoder"),
+        .codec         = { "rtp_codec",        TFlowCtrl::CFT_NUM,  0, {.num = 0},               &ui_dd_enc_codec},
+        .profile       = { "rtp_profile",      TFlowCtrl::CFT_NUM,  0, {.num = 0},               &ui_dd_hevc_profile},
+        .qp            = { "rtp_qp",           TFlowCtrl::CFT_VNUM, 0, {.vnum = &hevc_qp_value}, &ui_sl2_hevc_qp },
+        .qp_i          = { "rtp_qp_i",         TFlowCtrl::CFT_NUM,  0, {.num = 30},              &ui_sl_qp },       // Lower better quality
+        .qp_p          = { "rtp_qp_p",         TFlowCtrl::CFT_NUM,  0, {.num = 30},              &ui_sl_qp },
+        .gop_size      = { "rtp_gop_size",     TFlowCtrl::CFT_NUM,  0, {.num = 30},              &ui_edit_def },
+        .bitrate_mode  = { "rtp_bitrate_mode", TFlowCtrl::CFT_NUM,  0, {.num =  0},              &ui_dd_bitrate_mode },
+        .bitrate       = { "rtp_bitrate",      TFlowCtrl::CFT_NUM,  0, {.num = 0x200000},        &ui_edit_def },
         TFLOW_CMD_EOMSG
     };
+
 };
 
 //extern TFlowEncCfg tflow_enc_cfg;

@@ -211,6 +211,10 @@ void TFlowVStream::OnIdle()
         buf_cli_streaming->onIdle(now_ts);
     }
 
+    if (ws_streamer) {
+        ws_streamer->onIdle(now_ts);
+    }
+
     ctrl.ctrl_srv.onIdle(now_ts);
 
 }
@@ -473,9 +477,6 @@ void TFlowVStream::onFrameStreaming(int src_id, const TFlowBufPck::pck_consume* 
     if (rtsp_streamer) {
         rtsp_streamer->onFrame(tflow_buf_in);
     }
-    else if (ws_streamer) {      
-        ws_streamer->onFrame(tflow_buf_in);
-    }
 
     if (rtp_streamer) {      
         rtp_streamer->onFrame(tflow_buf_in);
@@ -598,10 +599,6 @@ void TFlowVStream::onSrcGoneRecording(int cam_id)
 
 void TFlowVStream::onSrcGoneStreaming(int src_id)
 {
-    if (ws_streamer) {
-        ws_streamer->stop();
-    }
-
     if (rtsp_streamer) {
         // TODO: Keep streaming with TV grid or other pattern
         delete rtsp_streamer;
@@ -693,14 +690,6 @@ void TFlowVStream::onSrcReadyStreaming(int src_id, const TFlowBufPck::pck_src_in
     }
 #endif
 
-#if WS_STREAMER
-    if (cfg->type.v.num == TFlowCtrlVStreamUI::STREAMING_TYPE_WS) {
-        if (ws_streamer) {
-            ws_streamer->start(src_info->width, src_info->height, src_info->format);
-        }
-    }
-#endif
-
 #if RTP_STREAMER
     if (cfg->type.v.num == TFlowCtrlVStreamUI::STREAMING_TYPE_RTP) {
         const auto rtp_streamer_cfg =
@@ -722,10 +711,6 @@ int TFlowVStream::setStreamingSrc(TFlowCtrlVStreamUI::VIDEO_SRC src,
         buf_cli_streaming = nullptr;
     }
 
-    if (ws_streamer) {
-        ws_streamer->stop();
-    }
-
     if (rtsp_streamer) {
         delete rtsp_streamer;
         rtsp_streamer = nullptr;
@@ -740,17 +725,7 @@ int TFlowVStream::setStreamingSrc(TFlowCtrlVStreamUI::VIDEO_SRC src,
         return 0;
     }
 
-    if (type == TFlowCtrlVStreamUI::STREAMING_TYPE_WS) {
-        if (!ws_streamer) {
-            const auto ws_streamer_cfg =
-                (TFlowWSStreamerCfg::cfg_ws_streamer*)ctrl.cmd_flds_cfg_streaming.ws_streamer.v.ref;
-
-            // WebSocket running even if an input source doesn't exist yet.
-            // Upon Src ready ws_streamer->start will be triggered
-            ws_streamer = new TFlowWsVStreamer(ws_streamer_cfg);
-        }
-    }
-    else if (type == TFlowCtrlVStreamUI::STREAMING_TYPE_RTSP) {
+    if (type == TFlowCtrlVStreamUI::STREAMING_TYPE_RTSP) {
         // RTSP streamer created on "SRC ready" as it depends on frame format,
         // nothing to do here.
         // TODO: ?Start streaming TV grid or noisy screen until SRC ready?
@@ -767,7 +742,6 @@ int TFlowVStream::setStreamingSrc(TFlowCtrlVStreamUI::VIDEO_SRC src,
         (src == TFlowCtrlVStreamUI::VIDEO_SRC_PROC) ? "com.reedl.tflow.process.buf-server" : "";
 
     buf_cli_streaming = new TFlowBufCli(
-        context,
         "TFlowVStream", srv_name, 0,
         std::bind(&TFlowVStream::onFrameStreaming,      this, std::placeholders::_1, std::placeholders::_2),   // TFlowBufCli::app_onFrame()
         std::bind(&TFlowVStream::onSrcReadyStreaming,   this, std::placeholders::_1, std::placeholders::_2),   // TFlowBufCli::app_onSrcReady()
@@ -805,7 +779,6 @@ int TFlowVStream::setRecordingSrc(int src, int en)
             (src == TFlowCtrlVStreamUI::VIDEO_SRC_PROC ) ? "com.reedl.tflow.process.buf-server" : "";
 
         buf_cli_recording_cam0 = new TFlowBufCli(
-            context,
             "TFlowVStreamRecCAM0", srv_name, 0,
             std::bind(&TFlowVStream::onFrameRecording,    this, std::placeholders::_1, std::placeholders::_2),   // TFlowBufCli::app_onFrame()
             std::bind(&TFlowVStream::onSrcReadyRecording, this, std::placeholders::_1, std::placeholders::_2),   // TFlowBufCli::app_onSrcReady()
@@ -823,7 +796,6 @@ int TFlowVStream::setRecordingSrc(int src, int en)
         //    (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM01) ? "com.reedl.tflow.capture1.buf-server" : "";
 
         buf_cli_recording_cam1 = new TFlowBufCli(
-            context,
             "TFlowVStreamRecCAM1", srv_name, 1,
             std::bind(&TFlowVStream::onFrameRecording,    this, std::placeholders::_1, std::placeholders::_2),   // TFlowBufCli::app_onFrame()
             std::bind(&TFlowVStream::onSrcReadyRecording, this, std::placeholders::_1, std::placeholders::_2),   // TFlowBufCli::app_onSrcReady()
@@ -832,7 +804,31 @@ int TFlowVStream::setRecordingSrc(int src, int en)
             std::bind(&TFlowVStream::onDisconnect,        this, std::placeholders::_1));                         // TFlowBufCli::app_onDisconnect()
     } 
 
-
     return 0;
 }
 
+#if 0
+
+    if (ws_streamer) {
+        ws_streamer->stop();
+    }
+
+    if (cfg->type.v.num == TFlowCtrlVStreamUI::STREAMING_TYPE_WS) {
+        if (ws_streamer) {
+            ws_streamer->start(src_info->width, src_info->height, src_info->format);
+        }
+    }
+
+
+    if (type == TFlowCtrlVStreamUI::STREAMING_TYPE_WS) {
+        if (!ws_streamer) {
+            const auto ws_streamer_cfg =
+                (TFlowWSStreamerCfg::cfg_ws_streamer*)ctrl.cmd_flds_cfg_streaming.ws_streamer.v.ref;
+
+            // WebSocket running even if an input source doesn't exist yet.
+            // Upon Src ready ws_streamer->start will be triggered
+            ws_streamer = new TFlowWsVStreamer(ws_streamer_cfg);
+        }
+    }
+    else
+#endif

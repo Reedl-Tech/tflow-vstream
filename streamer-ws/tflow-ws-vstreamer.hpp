@@ -1,14 +1,14 @@
 #pragma once 
 
 #include <thread>
-#include "../mongoose.h"
+#include "mongoose.h"
 
-#include "../tflow-common.hpp"
-#include "../tflow-glib.hpp"
+#include "tflow-common.hpp"
+#include "tflow-glib.hpp"
 
-#include "../tflow-buf.hpp"
+#include "tflow-buf.hpp"
 
-#include "../encoder-v4l2/tflow-v4l2enc.hpp"
+#include "encoder-v4l2/tflow-v4l2enc.hpp"
 
 #include "tflow-ws-vstreamer-cfg.hpp" 
 
@@ -18,14 +18,12 @@ public:
 
     ~TFlowWsVStreamer();
 
-    void onFrame(const TFlowBuf& buf_in);
-
+    void onIdle(const struct timespec &now_ts);
     void onConfigValidate(json11::Json::object& j_out_params, TFlowWSStreamerCfg::cfg_ws_streamer *rw_cfg);
-    int onConfig(json11::Json::object& j_out_params);
+    int onConfig();
 
     TFlowEnc *encoder;
 
-    int start(int _w, int _h, uint32_t _fmt);
     void stop();
 
 private:
@@ -44,11 +42,16 @@ private:
 
     int enc_seq;
 
-    int frame_width;
-    int frame_height;
-    uint32_t in_frame_fmt;  // Streamer's input frame format may differs from the
-                            // Encoder's input format. Format conversion will be
-                            // performed on data buffer copy (see fillBuffer()).
+    struct frame_info in_frame_info;   // Streamer's input frame format may differs from the
+                                       // Encoder's input format. Format conversion will be
+                                       // performed on data buffer copy (see fillBuffer()).
+
+    // Input stream client (TFlowBufCli) and its callbacks
+    TFlowBufCli *buf_cli_in_stream;
+    void onFrame(int src_id, const TFlowBufPck::pck_consume* msg_consume);
+    void onSrcReady(int src_id, const TFlowBufPck::pck_src_info* src_info);
+    void onSrcGone(int src_id);
+
 
     // HEVC/H264 encoder
     int onFrameEncoded(TFlowBuf &buf);

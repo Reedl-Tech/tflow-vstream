@@ -18,7 +18,6 @@
 class TFlowBufCli {
 public:
     TFlowBufCli(
-        GMainContext* app_context,
         const char* _cli_name, const char* _srv_name, int _src_id,
         std::function<void(int src_id, const TFlowBufPck::pck_consume* msg_consume)> app_onFrame,
         std::function<void(int src_id, const TFlowBufPck::pck_src_info* src_info)> app_onSrcReady,
@@ -55,6 +54,7 @@ public:
     std::vector<TFlowBuf> tflow_bufs;
 
     std::function<void(int src_id, const TFlowBufPck::pck_consume* msg)> app_onFrame;
+//    std::function<void(int src_id, const TFlowBufPck::pck_consume* msg)> app_onFrame;
     std::function<void(int src_id, const TFlowBufPck::pck_src_info* src_info)> app_onSrcReady;
     std::function<void(int src_id)> app_onSrcGone;
     std::function<void(int src_id)> app_onConnect;

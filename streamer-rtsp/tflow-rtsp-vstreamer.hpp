@@ -6,12 +6,12 @@
 
 #include <gst/rtsp-server/rtsp-server.h>
 
-#include "../tflow-common.hpp"
-#include "../tflow-glib.hpp"
+#include "tflow-common.hpp"
+#include "tflow-glib.hpp"
 
-#include "../tflow-buf.hpp"
+#include "tflow-buf.hpp"
 
-#include "../encoder-v4l2/tflow-v4l2enc.hpp"
+#include "encoder-v4l2/tflow-v4l2enc.hpp"
 
 #include "tflow-rtsp-vstreamer-cfg.hpp" 
 

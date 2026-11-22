@@ -750,8 +750,7 @@ int TFlowEnc::Init()
     rc = setFrameInterval();
     if (rc) return rc;
 
-    json11::Json::object j_dummy;
-    rc = onConfig(j_dummy, true);
+    rc = onConfig(true);
     //if (rc) return rc;
 
     prepareBuffers();
@@ -1003,7 +1002,7 @@ void TFlowEnc::onConfigValidate(json11::Json::object& j_out_params, TFlowEncCfg:
 
 }
 
-int TFlowEnc::onConfig(json11::Json::object& j_out_params, int force_update)
+int TFlowEnc::onConfig(int force_update)
 {
     int rc;
 

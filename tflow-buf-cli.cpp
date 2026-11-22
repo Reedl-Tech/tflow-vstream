@@ -340,7 +340,6 @@ int TFlowBufCli::onMsg()
 }
 
 TFlowBufCli::TFlowBufCli(
-    GMainContext* app_context,
     const char* _cli_name, const char* _srv_name, int _src_id,
     std::function<void(int src_id, const TFlowBufPck::pck_consume* msg_consume)> _app_onFrame,
     std::function<void(int src_id, const TFlowBufPck::pck_src_info* src_info)> _app_onSrcReady,
@@ -355,7 +354,8 @@ TFlowBufCli::TFlowBufCli(
     app_onConnect(_app_onConnect),
     app_onDisconnect(_app_onDisconnect)
 {
-    context = app_context;
+    context = g_main_context_get_thread_default();
+
     sck_state_flag.v = Flag::UNDEF;
     sck_tag = NULL;
     sck_src = NULL;

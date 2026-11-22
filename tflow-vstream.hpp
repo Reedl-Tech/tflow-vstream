@@ -60,7 +60,7 @@ public:
 
     TFlowBufCli *buf_cli_recording_cam0;
     TFlowBufCli *buf_cli_recording_cam1;
-    TFlowBufCli *buf_cli_streaming;
+    TFlowBufCli *buf_cli_streaming;             // Part of streamer???
 
     void onConnect(int src_id);
     void onDisconnect(int src_id);

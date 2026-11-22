@@ -2,11 +2,11 @@
 
 #include <unordered_map>
 
-#include "../tflow-common.hpp"
-#include "../tflow-glib.hpp"
+#include "tflow-common.hpp"
+#include "tflow-glib.hpp"
 
-#include "../tflow-buf.hpp"
-#include "../tflow-ctrl.hpp"
+#include "tflow-buf.hpp"
+#include "tflow-ctrl.hpp"
 #include "tflow-v4l2enc-cfg.hpp"
 
 class  TFlowEnc {
@@ -39,7 +39,7 @@ public:
     int onOutputReady(TFlowBuf &buf);
     int onInputReleased(TFlowBuf &buf);
 
-    int onConfig(json11::Json::object& j_out_params, int force_update = 0);
+    int onConfig(int force_update = 0);
     void onConfigValidate(json11::Json::object& j_out_params, TFlowEncCfg::cfg_v4l2_enc *rw_cfg);
 
     // Utils

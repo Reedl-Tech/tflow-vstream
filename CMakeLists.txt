@@ -77,8 +77,10 @@ pkg_check_modules(OTHERS REQUIRED IMPORTED_TARGET
     libjpeg
 )
 
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0") # Add debug information
 
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE ${GLIB_INCLUDE_DIRS})
 target_include_directories(${PROJECT_NAME} PRIVATE ${GLIBMM_INCLUDE_DIRS})
 target_include_directories(${PROJECT_NAME} PRIVATE ${OTHERS_INCLUDE_DIRS})

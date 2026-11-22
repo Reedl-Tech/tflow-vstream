@@ -4,7 +4,6 @@
 #include <csignal>
 #include <sys/stat.h>
 
-//#include <giomm.h>
 #include <glib-unix.h>
 
 #include "tflow-vstream.hpp"
@@ -77,6 +76,27 @@ void getConfigFilename(int argc, char* argv, std::string cfg_fname)
     }
 }
 
+uint32_t fmt_frame2mat(uint32_t v4l2_4c_fmt)
+{
+    uint32_t mat_fmt;
+    switch (v4l2_4c_fmt) {
+    case V4L2_PIX_FMT_GREY:
+        mat_fmt = CV_8UC1;
+        break;
+    case V4L2_PIX_FMT_BGR24:
+        mat_fmt = CV_8UC3;
+        break;
+    default:
+        mat_fmt = CV_8UC1;
+    }
+    return mat_fmt;
+}
+
+int fmt_width(uint32_t v4l2_4c_fmt)
+{
+    return ((fmt_frame2mat(v4l2_4c_fmt) >> CV_CN_SHIFT) + 1) & (CV_CN_MAX - 1);
+}
+
 int main(int argc, char** argv)
 {
     //Gio::init();
@@ -86,11 +106,9 @@ int main(int argc, char** argv)
     std::string cfg_fname("/etc/tflow/tflow-vstream-config.json");
     getConfigFilename(argc, argv[1], cfg_fname);
     
-    GMainContext* context2 = g_main_context_default();
-    GMainContext *context1 = g_main_context_ref_thread_default();
-    GMainContext *context = g_main_context_get_thread_default();
-    //GMainContext *context = g_main_context_new();
-    //g_main_context_push_thread_default(context);
+    //GMainContext* context2 = g_main_context_default();
+    //GMainContext *context1 = g_main_context_ref_thread_default();
+    GMainContext *context = g_main_context_get_thread_default();   // Normally nullptr
 
     gp_app = new TFlowVStream(context, cfg_fname);
 

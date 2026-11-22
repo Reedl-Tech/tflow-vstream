@@ -153,10 +153,15 @@ int TFlowCtrlVStream::cmd_cb_streaming_config(const json11::Json& j_in_params, J
         auto ws_streamer_rw_cfg = (TFlowWSStreamerCfg::cfg_ws_streamer*)
             cmd_flds_cfg_streaming.ws_streamer.v.ref;
 
-        if (app.ws_streamer) {
-            app.ws_streamer->onConfigValidate(j_out_params, ws_streamer_rw_cfg);
-            app.ws_streamer->onConfig(j_out_params);
+        if (app.ws_streamer == nullptr) {
+            // Initial configuration apply. Normally happens on startup upon 
+            // config file read.
+            app.ws_streamer = new TFlowWsVStreamer(ws_streamer_rw_cfg);
         }
+        
+        app.ws_streamer->onConfigValidate(j_out_params, ws_streamer_rw_cfg);
+        app.ws_streamer->onConfig();
+
     }
 
     if (cmd_flds_cfg_streaming.capture_en.flags & FIELD_FLAG::CHANGED) {
