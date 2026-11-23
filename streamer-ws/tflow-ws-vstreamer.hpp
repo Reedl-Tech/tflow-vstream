@@ -32,7 +32,7 @@ private:
     
     const TFlowWSStreamerCfg::cfg_ws_streamer *cfg;
 
-    int restart();  // The same as start,  but without frame configuration change. 
+    int restart();  // The same as restart,  but without frame configuration change. 
                     // Is used on encoder configuration change.
 
     TFlowBuf* getFreeBuffer();                                      // TODO: rework required. Must be part of TFlowEnc
@@ -50,10 +50,9 @@ private:
 
     // Input stream client (TFlowBufCli) and its callbacks
     TFlowBufCli *buf_cli_in_stream;
-    void onFrame(int src_id, const TFlowBufPck::pck_consume* msg_consume);
-    void onSrcReady(int src_id, const TFlowBufPck::pck_src_info* src_info);
+    void onFrame(int src_id, const TFlowBuf& buf_in);
+    void onSrcReady(int src_id, const struct frame_info &in_frame_info);
     void onSrcGone(int src_id);
-
 
     // HEVC/H264 encoder
     int onFrameEncoded(TFlowBuf &buf);

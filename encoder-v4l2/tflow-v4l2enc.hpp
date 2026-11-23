@@ -39,7 +39,7 @@ public:
     int isDriverOutputBuffers();
     int onOutputReady(TFlowBuf &buf);
     int onInputReleased(TFlowBuf &buf);
-    int onFrame(TFlowBuf &buf);
+    int onFrame(const TFlowBuf &buf);
 
     int onConfig(int force_update = 0);
     void onConfigValidate(json11::Json::object& j_out_params, TFlowEncCfg::cfg_v4l2_enc *rw_cfg);

@@ -310,13 +310,13 @@ void TFlowEnc::fillBuffer(TFlowBuf& buf_enc, const TFlowBuf& buf_in)
         // Y += 16, U = 128, V = 128;
         // Let's ignore proper conversion (Y+=16) for a while, just copy Y 
         // component. UV component are not affected by GREY frame thus they can
-        // be prefilled upon buffer creation. See TFlowWsVStreamer::start()
+        // be prefilled upon buffer creation. See TFlowWsVStreamer::restart()
         memcpy(buf_enc.start, data_buff, data_buff_len);
     }
     
 }
 
-int TFlowEnc::onFrame(TFlowBuf& buf_in)
+int TFlowEnc::onFrame(const TFlowBuf& buf_in)
 {
     TFlowBuf* buf_enc = getFreeInputBuffer();
 

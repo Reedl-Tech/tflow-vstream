@@ -54,11 +54,10 @@ client_filter(GstRTSPServer* server, GstRTSPClient* client, gpointer user_data)
     return GST_RTSP_FILTER_REMOVE;
 }
 
-void TFlowRTSPVStreamer::CloseRTSP()
+void TFlowRTSPVStreamer::stop()
 {
     // From GLIB: You must use g_source_destroy() for sources added to a non-default main context.
     if (server) {
-
         /* Remove the mount point to prevent new clients connecting */
         GstRTSPMountPoints* mounts;
         mounts = gst_rtsp_server_get_mount_points(server);
@@ -174,11 +173,11 @@ void TFlowRTSPVStreamer::media_configure(GstRTSPMedia* media)
     gst_rtsp_media_set_latency(media, 0);
 }
 
-int TFlowRTSPVStreamer::StartRTSP()
+int TFlowRTSPVStreamer::restart()
 {
     GstRTSPMountPoints* mounts;
 
-    gst_init(NULL, NULL);
+    stop();
 
     in_data_copy = (uint8_t*)g_malloc(frame_size);
 
@@ -190,21 +189,33 @@ int TFlowRTSPVStreamer::StartRTSP()
     char port_str[16] = { 0 };
     if (cfg->port.v.num) {
         snprintf(port_str, sizeof(port_str) - 1, "%d", cfg->port.v.num);
-        g_object_set (server, "service", port_str, NULL);
+        g_object_set(server, "service", port_str, NULL);
     }
     else {
         snprintf(port_str, sizeof(port_str) - 1, "%d", 8554);
         // Use default port - 8554
     }
-   
+
+    char gst_crop_str[256] = { 0 };
+    if (cfg->crop_en.v.num) {
+        snprintf(gst_crop_str, sizeof(gst_crop_str) - 1,
+            "! videocrop top=%d left=%d right=%d bottom=%d ",
+            (*cfg->crop_v.v.vnum)[0],  // crop_top
+            (*cfg->crop_h.v.vnum)[0],  // crop_left,
+            (*cfg->crop_h.v.vnum)[1],  // crop_right
+            (*cfg->crop_v.v.vnum)[1]); // crop_bottom
+    }
+
     char gst_pipeline_str[512] = { 0 };
     if (cfg->enc_type.v.num == TFlowRTSPStreamerUI::ENC_TYPE_H265) {
         snprintf(gst_pipeline_str, sizeof(gst_pipeline_str) - 1,
-            "( appsrc name=vstreamer %s ! vpuenc_hevc ! rtph265pay name=pay0 pt=96 )");
+            "( appsrc name=vstreamer %s ! vpuenc_hevc ! rtph265pay name=pay0 pt=96 )",
+            gst_crop_str);
     }
     else {
         snprintf(gst_pipeline_str, sizeof(gst_pipeline_str) - 1,
-            "( appsrc name=vstreamer ! vpuenc_h264 ! rtph264pay name=pay0 pt=96 )");
+            "( appsrc name=vstreamer %s ! vpuenc_h264 ! rtph264pay name=pay0 pt=96 )",
+            gst_crop_str);
     }
     gst_rtsp_media_factory_set_launch(factory, gst_pipeline_str);
 
@@ -250,24 +261,26 @@ int TFlowRTSPVStreamer::StartRTSP()
 
 void TFlowRTSPVStreamer::onIdle(struct timespec now_ts)
 {
-    // ???
+    if (buf_cli_in_stream) {
+        buf_cli_in_stream->onIdle(now_ts);
+    }
 }
 
-void TFlowRTSPVStreamer::onFrame(const TFlowBuf& buf_in)
+void TFlowRTSPVStreamer::onFrame(int src_id, const TFlowBuf &buf_in)
 {
-    // TODO: Greate GST memory buffer and map it to TFlowBuffer to avoid memory copy.
-    //       gst_buffer_new_wrapped_full(). Rework input buffer for shared pointer?
-    //  
+    // TODO: Check received src_id vs configured source
+
     // Note: as soon as rtsp server running in same mainloop it is safe
     //       to change the input buffer without MT protection
     memcpy(in_data_copy, buf_in.start, buf_in.length);
 }
 
-TFlowRTSPVStreamer::TFlowRTSPVStreamer(int _w, int _h,
-    const TFlowRTSPStreamerCfg::cfg_rtsp_streamer *rtsp_streamer_cfg)
+TFlowRTSPVStreamer::TFlowRTSPVStreamer(const TFlowRTSPStreamerCfg::cfg_rtsp_streamer *rtsp_streamer_cfg)
 {
     int rc;
                    
+    gst_init(NULL, NULL);
+
     cfg = rtsp_streamer_cfg;
 
     // TODO: share encoder between WS and RTSP streamers
@@ -284,30 +297,16 @@ TFlowRTSPVStreamer::TFlowRTSPVStreamer(int _w, int _h,
 
     last_idle_check = 0;
 
-    width = _w;
-    height = _h;
-    uint32_t format = V4L2_PIX_FMT_ABGR32;
-
-    // TODO: pass format as a constructor param received on SRC connection
-
-    frame_size = (width * height *
-           ((format == V4L2_PIX_FMT_GREY  ) ? 8 :
-            (format == V4L2_PIX_FMT_BGR24 ) ? 24 :
-            (format == V4L2_PIX_FMT_ABGR32) ? 32 :
-            (format == V4L2_PIX_FMT_NV12  ) ? 12 : 0)) / 8;
-
     server = nullptr;
     factory = nullptr;
     appsrc = nullptr;
     in_data_copy = nullptr;
     in_buffer = nullptr;
-
-    StartRTSP();
 }
 
 TFlowRTSPVStreamer::~TFlowRTSPVStreamer()
 {
-    CloseRTSP();
+    stop();
 }
 
 void TFlowRTSPVStreamer::onConfigValidate(json11::Json::object& j_out_params,
@@ -325,14 +324,66 @@ void TFlowRTSPVStreamer::onConfigValidate(json11::Json::object& j_out_params,
 
 }
 
-int TFlowRTSPVStreamer::onConfig(json11::Json::object& j_out_params)
+int TFlowRTSPVStreamer::onConfig()
 {
-    if (cfg->fps.flags      & TFlowCtrl::FIELD_FLAG::CHANGED ||
-        cfg->enc_type.flags & TFlowCtrl::FIELD_FLAG::CHANGED) {
+    int restart_required = 0;
 
-        CloseRTSP();
-        StartRTSP();
+    if (cfg->src.flags & TFlowCtrl::FIELD_FLAG::CHANGED) {
+
+        stop();
+
+        // Close current input stream in any case
+        if (buf_cli_in_stream) {
+            delete buf_cli_in_stream;
+            buf_cli_in_stream = nullptr;
+        }
+
+        TFlowRTSPStreamerUI::VIDEO_SRC src = (TFlowRTSPStreamerUI::VIDEO_SRC)cfg->src.v.num;
+
+        const char* srv_name =
+            (src == TFlowRTSPStreamerUI::VIDEO_SRC_CAM0) ? "com.reedl.tflow.capture0.buf-server" :
+            (src == TFlowRTSPStreamerUI::VIDEO_SRC_CAM1) ? "com.reedl.tflow.capture1.buf-server" :
+            (src == TFlowRTSPStreamerUI::VIDEO_SRC_PROC) ? "com.reedl.tflow.process.buf-server" : "";
+
+        if (srv_name) {
+            buf_cli_in_stream = new TFlowBufCli(
+                "TFlowStreamer_RTSP", srv_name, 0,
+                std::bind(&TFlowRTSPVStreamer::onFrame,    this, std::placeholders::_1, std::placeholders::_2),   // TFlowBufCli::app_onFrame()
+                std::bind(&TFlowRTSPVStreamer::onSrcReady, this, std::placeholders::_1, std::placeholders::_2),   // TFlowBufCli::app_onSrcReady()
+                std::bind(&TFlowRTSPVStreamer::onSrcGone,  this, std::placeholders::_1),                          // TFlowBufCli::app_onSrcGone()
+                nullptr,
+                nullptr);
+
+            restart_required = 1;
+        }
+    } // End of SRC changed
+
+    if (cfg->fps.flags      & TFlowCtrl::FIELD_FLAG::CHANGED ||
+        cfg->enc_type.flags & TFlowCtrl::FIELD_FLAG::CHANGED ||
+        cfg->crop_en.flags  & TFlowCtrl::FIELD_FLAG::CHANGED) {
+
+        restart_required = 1;
     }
+     
+    if (restart_required) restart();
 
     return 0;
+}
+
+void TFlowRTSPVStreamer::onSrcReady(int src_id, const struct frame_info& _in_frame_info)
+{
+    in_frame_info = _in_frame_info;
+
+    frame_size = (in_frame_info.width * in_frame_info.height *
+           ((in_frame_info.format == V4L2_PIX_FMT_GREY)   ?  8 :
+            (in_frame_info.format == V4L2_PIX_FMT_BGR24)  ? 24 :
+            (in_frame_info.format == V4L2_PIX_FMT_ABGR32) ? 32 :
+            (in_frame_info.format == V4L2_PIX_FMT_NV12)   ? 12 : 0)) / 8;
+
+    restart();
+}
+
+void TFlowRTSPVStreamer::onSrcGone(int src_id)
+{
+    stop();
 }

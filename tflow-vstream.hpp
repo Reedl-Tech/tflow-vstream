@@ -58,23 +58,18 @@ public:
     void AttachIdle();
     void OnIdle();
 
+    struct frame_info in_frame_info_rec_cam0;       // not in use
+    struct frame_info in_frame_info_rec_cam1;       // not in use
+
     TFlowBufCli *buf_cli_recording_cam0;
     TFlowBufCli *buf_cli_recording_cam1;
-    TFlowBufCli *buf_cli_streaming;             // Part of streamer???
 
     void onConnect(int src_id);
     void onDisconnect(int src_id);
 
-    void onSrcGoneStreaming (int src_id);
-    void onSrcReadyStreaming(int src_id, const TFlowBufPck::pck_src_info* src_info);
-    void onFrameStreaming   (int src_id, const TFlowBufPck::pck_consume* msg_consume);
-    
     void onSrcGoneRecording (int src_id);
-    void onFrameRecording   (int src_id, const TFlowBufPck::pck_consume* msg_consume);
-    void onSrcReadyRecording(int src_id, const TFlowBufPck::pck_src_info* src_info);
-
-    int setStreamingSrc(TFlowCtrlVStreamUI::VIDEO_SRC src,
-        TFlowCtrlVStreamUI::STREAMING_TYPE type);
+    void onFrameRecording(int src_id, const TFlowBuf &buf_in);
+    void onSrcReadyRecording(int src_id, const struct frame_info& _in_frame_info);
 
     int setRecordingSrc(int src, int en);
 

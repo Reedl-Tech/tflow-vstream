@@ -68,8 +68,8 @@ private:
 
     // Input stream client (TFlowBufCli) and its callbacks
     TFlowBufCli *buf_cli_in_stream;
-    void onFrame(int src_id, const TFlowBufPck::pck_consume* msg_consume);
-    void onSrcReady(int src_id, const TFlowBufPck::pck_src_info* src_info);
+    void onFrame(int src_id, const TFlowBuf& buf_in);
+    void onSrcReady(int src_id, const struct frame_info& _in_frame_info);
     void onSrcGone(int src_id);
 
     clock_t last_idle_check;

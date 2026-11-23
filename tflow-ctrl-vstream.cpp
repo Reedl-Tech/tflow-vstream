@@ -5,9 +5,6 @@
 #include <json11.hpp>
 #include "tflow-vstream.hpp"
 
-int g_dbg_consume_en = 1;
-int g_dbg_consume_bump = 0;
-
 using namespace json11;
 
 static const char *raw_cfg_default =  R"( 
@@ -142,11 +139,18 @@ int TFlowCtrlVStream::cmd_cb_streaming_config(const json11::Json& j_in_params, J
     //std::string indent("|");
     //dumpFieldFlags(flds, indent);
 
-    if (cmd_flds_cfg_streaming.src.flags & FIELD_FLAG::CHANGED ||
-        cmd_flds_cfg_streaming.type.flags & FIELD_FLAG::CHANGED) {
-        app.setStreamingSrc(
-            (TFlowCtrlVStreamUI::VIDEO_SRC)cmd_flds_cfg_streaming.src.v.num,
-            (TFlowCtrlVStreamUI::STREAMING_TYPE)cmd_flds_cfg_streaming.type.v.num);
+    if (cmd_flds_cfg_streaming.rtsp_streamer.flags & FIELD_FLAG::CHANGED) {
+        auto rtsp_streamer_rw_cfg = (TFlowRTSPStreamerCfg::cfg_rtsp_streamer*)
+            cmd_flds_cfg_streaming.rtsp_streamer.v.ref;
+
+        if (app.rtsp_streamer == nullptr) {
+            // Initial configuration apply. Normally happens on startup upon 
+            // config file read.
+            app.rtsp_streamer = new TFlowRTSPVStreamer(rtsp_streamer_rw_cfg);
+        }
+
+        app.rtsp_streamer->onConfigValidate(j_out_params, rtsp_streamer_rw_cfg);
+        app.rtsp_streamer->onConfig();
     }
 
     if (cmd_flds_cfg_streaming.ws_streamer.flags & FIELD_FLAG::CHANGED) {
@@ -174,23 +178,6 @@ int TFlowCtrlVStream::cmd_cb_streaming_config(const json11::Json& j_in_params, J
 
         app.rtp_streamer->onConfigValidate(j_out_params, rtp_streamer_rw_cfg);
         app.rtp_streamer->onConfig();
-    }
-
-    if (cmd_flds_cfg_streaming.capture_en.flags & FIELD_FLAG::CHANGED) {
-        g_dbg_consume_en = cmd_flds_cfg_streaming.capture_en.v.num;
-    }
-    if (cmd_flds_cfg_streaming.capture_bump.flags & FIELD_FLAG::CHANGED) {
-        g_dbg_consume_bump = 1;
-    }
-
-    if (cmd_flds_cfg_streaming.rtsp_streamer.flags & FIELD_FLAG::CHANGED) {
-        auto rtsp_streamer_rw_cfg = (TFlowRTSPStreamerCfg::cfg_rtsp_streamer*)
-            cmd_flds_cfg_streaming.rtsp_streamer.v.ref;
-
-        if (app.rtsp_streamer) {
-            app.rtsp_streamer->onConfigValidate(j_out_params, rtsp_streamer_rw_cfg);
-            app.rtsp_streamer->onConfig(j_out_params);
-        }
     }
 
     // Composes all required config params and clears changed flag.

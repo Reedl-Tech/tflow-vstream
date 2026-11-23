@@ -10,6 +10,7 @@
 #include "tflow-glib.hpp"
 
 #include "tflow-buf.hpp"
+#include "tflow-buf-cli.hpp"
 
 #include "encoder-v4l2/tflow-v4l2enc.hpp"
 
@@ -17,13 +18,11 @@
 
 class TFlowRTSPVStreamer {
 public:
-    TFlowRTSPVStreamer(int _w, int _h,
-        const TFlowRTSPStreamerCfg::cfg_rtsp_streamer *rtsp_streamer_cfg);
+    TFlowRTSPVStreamer(const TFlowRTSPStreamerCfg::cfg_rtsp_streamer *_cfg);
     ~TFlowRTSPVStreamer();
 
-    void onFrame(const TFlowBuf& buf_in);
     void onConfigValidate(json11::Json::object& j_out_params, TFlowRTSPStreamerCfg::cfg_rtsp_streamer* rw_cfg);
-    int onConfig(json11::Json::object& j_out_params);
+    int onConfig();
 
     void onIdle(struct timespec now_ts);
 
@@ -31,14 +30,26 @@ public:
     TFlowEnc *encoder;
 private:
     
-    int StartRTSP();
-    void CloseRTSP();
+    int  restart();
+    void stop();
 
     const TFlowRTSPStreamerCfg::cfg_rtsp_streamer *cfg;
+
+    struct frame_info in_frame_info;   // Streamer's input frame format may differs from the
+    // Encoder's input format. Format conversion will be
+    // performed on data buffer copy (see fillBuffer()).
+
+    // Input stream client (TFlowBufCli) and its callbacks
+    TFlowBufCli* buf_cli_in_stream;
+    void onFrame(int src_id, const TFlowBuf &buf_in);
+    void onSrcReady(int src_id, const struct frame_info& _in_frame_info);
+    void onSrcGone(int src_id);
+
 
     int width;
     int height;
     long frame_size;
+
     GstBuffer* in_buffer;
     uint8_t *in_data_copy;
 

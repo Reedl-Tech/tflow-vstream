@@ -46,7 +46,6 @@ InFrameJP::InFrameJP(uint32_t width, uint32_t height, uint32_t format, uint8_t* 
 TFlowVStream::TFlowVStream(GMainContext *_context, const std::string cfg_fname) :
     buf_cli_recording_cam0(nullptr),
     buf_cli_recording_cam1(nullptr),
-    buf_cli_streaming(nullptr),
     jp_enc_cam0(nullptr),
     jp_enc_cam1(nullptr),
     ws_streamer(nullptr),
@@ -61,7 +60,7 @@ TFlowVStream::TFlowVStream(GMainContext *_context, const std::string cfg_fname) 
     mjpeg_file_size = 0;
 
     recording_total_size = -1;          // Unknown
-    recording_total_size_recalc = 1;    // Recalculate total file size on start
+    recording_total_size_recalc = 1;    // Recalculate total file size on restart
     forced_split = 0;
     split_last_ts = 0;
     vdump_timeout_src = NULL;
@@ -79,6 +78,11 @@ TFlowVStream::~TFlowVStream()
         rtp_streamer = nullptr;
     }
 
+    if (rtsp_streamer) {
+        delete rtsp_streamer;
+        rtsp_streamer = nullptr;
+    }
+
     if (buf_cli_recording_cam0) {
         delete buf_cli_recording_cam0;
         buf_cli_recording_cam0 = nullptr;
@@ -86,10 +90,6 @@ TFlowVStream::~TFlowVStream()
     if (buf_cli_recording_cam1) {
         delete buf_cli_recording_cam1;
         buf_cli_recording_cam1 = nullptr;
-    }
-    if (buf_cli_streaming) {
-        delete buf_cli_streaming;
-        buf_cli_streaming = nullptr;
     }
 
     // Finalize the vdump file if active
@@ -212,16 +212,16 @@ void TFlowVStream::OnIdle()
         buf_cli_recording_cam1->onIdle(now_ts);
     }
 
-    if (buf_cli_streaming) {
-        buf_cli_streaming->onIdle(now_ts);
-    }
-
     if (ws_streamer) {
         ws_streamer->onIdle(now_ts);
     }
 
     if (rtp_streamer) {
         rtp_streamer->onIdle(now_ts);
+    }
+
+    if (rtsp_streamer) {
+        rtsp_streamer->onIdle(now_ts);
     }
 
     ctrl.ctrl_srv.onIdle(now_ts);
@@ -460,35 +460,7 @@ void TFlowVStream::fileSplit()
     }
 }
 
-void TFlowVStream::onFrameStreaming(int src_id, const TFlowBufPck::pck_consume* msg_consume)
-{
-    assert(msg_consume->buff_index >= 0 && msg_consume->buff_index < buf_cli_streaming->tflow_bufs.size());
-    TFlowBuf& tflow_buf_in = buf_cli_streaming->tflow_bufs.at(msg_consume->buff_index);
-
-    memcpy(tflow_buf_in.aux_data, msg_consume->aux_data, msg_consume->aux_data_len);
-    tflow_buf_in.aux_data_len = msg_consume->aux_data_len;
-    tflow_buf_in.ts = msg_consume->ts;
-    tflow_buf_in.sequence = msg_consume->seq;
-
-#if FRAME_DELAY_PROFILE
-    PRESC(0x1F) {
-        struct timespec buf_ts;
-        struct timespec now_ts;
-        buf_ts.tv_sec = tflow_buf_in.ts.tv_sec;
-        buf_ts.tv_nsec = tflow_buf_in.ts.tv_usec * 1000;
-
-        clock_gettime(CLOCK_MONOTONIC, &now_ts);
-        double dt = TFlowPerfMon::diff_timespec_msec(&now_ts, &buf_ts);
-        g_critical("== 1 == Frame TS on Consume        [%d] %f (%d, %d)", tflow_buf_in.sequence, dt, buf_ts.tv_nsec, now_ts.tv_nsec);
-    }
-#endif
-
-    if (rtsp_streamer) {
-        rtsp_streamer->onFrame(tflow_buf_in);
-    }
-}
-
-void TFlowVStream::onFrameRecording(int src_id, const TFlowBufPck::pck_consume* msg_consume)
+void TFlowVStream::onFrameRecording(int src_id, const TFlowBuf &buf_in)
 {
 #if CODE_BROWSE
     // called from
@@ -504,13 +476,13 @@ void TFlowVStream::onFrameRecording(int src_id, const TFlowBufPck::pck_consume* 
 
     unsigned char *jp_out_buf = nullptr;
     long jp_out_buf_size = 0;
-    const InFrameJP &in_frame = jp_enc->jpEncode(msg_consume->buff_index, qlty,
+    const InFrameJP &in_frame = jp_enc->jpEncode(buf_in.index, qlty,
         &jp_out_buf, &jp_out_buf_size); 
 
     assert(jp_out_buf_size);
     assert(jp_out_buf);
 
-    if (0 == isDumpRequired(msg_consume->aux_data, msg_consume->aux_data_len)) {
+    if (0 == isDumpRequired(buf_in.aux_data, buf_in.aux_data_len)) {
         return;
     }
 
@@ -537,11 +509,11 @@ void TFlowVStream::onFrameRecording(int src_id, const TFlowBufPck::pck_consume* 
     } jpeg_frame_data = {
             .sign = {'R', 'T', '.', '3'},           // 0x332E5452
             .src_id = (uint32_t)src_id,             // Assigned on buffer client creation
-            .ts = msg_consume->ts,                  // Inherited from V4L2 buffer timeval
+            .ts = buf_in.ts,                        // Inherited from V4L2 buffer timeval
             .width        = in_frame.width,
             .height       = in_frame.height,
             .format       = in_frame.format,
-            .aux_data_len = (uint32_t)msg_consume->aux_data_len,
+            .aux_data_len = (uint32_t)buf_in.aux_data_len,
             .jpeg_sz      = (uint32_t)jp_out_buf_size
     };                                                      
 #pragma pack(pop)
@@ -551,8 +523,8 @@ void TFlowVStream::onFrameRecording(int src_id, const TFlowBufPck::pck_consume* 
         // TODO: Consider scatter-gather function like - 
         //       writev (int filedes, const struct iovec *vector, int count)
         bwr += fwrite(&jpeg_frame_data, 1, sizeof(jpeg_frame_data), mjpeg_file);
-        if (msg_consume->aux_data_len) {
-            bwr += fwrite(msg_consume->aux_data, 1, msg_consume->aux_data_len, 
+        if (buf_in.aux_data_len) {
+            bwr += fwrite(buf_in.aux_data, 1, buf_in.aux_data_len, 
                 mjpeg_file);
         }
         bwr += fwrite(jp_out_buf, 1, jp_out_buf_size, mjpeg_file);
@@ -602,127 +574,26 @@ void TFlowVStream::onSrcGoneRecording(int cam_id)
     fileClose();
 }
 
-void TFlowVStream::onSrcGoneStreaming(int src_id)
-{
-    if (rtsp_streamer) {
-        // TODO: Keep streaming with TV grid or other pattern
-        delete rtsp_streamer;
-        rtsp_streamer = nullptr;
-    }
-}
-
 void TFlowVStream::onConnect(int src_id) {}
 void TFlowVStream::onDisconnect(int src_id) {}
 
-void TFlowVStream::onSrcReadyRecording(int src_id, const TFlowBufPck::pck_src_info* src_info) 
+void TFlowVStream::onSrcReadyRecording(int src_id, const struct frame_info& _in_frame_info)
 {
-    switch (src_info->format) {
-    case V4L2_PIX_FMT_GREY:
-        // Native format for Thermal imaging camera.
-        break;
-    case V4L2_PIX_FMT_NV12:
-    case V4L2_PIX_FMT_ABGR32:
-        // Native format for RGB camera or TFlowProcess output.
-        g_warning("Oooops - Unsupported recorder source format 0x%04X", src_info->format);
-        assert(0);
-        break;
-    default:
-        // oops. Unknown format
-        g_warning("Oooops - Unknown source format 0x%04X", src_info->format);
-        return;
-    }
-
     switch (src_id) {
         case 0: 
+            in_frame_info_rec_cam0 = _in_frame_info;
             if (jp_enc_cam0) delete jp_enc_cam0;
-            jp_enc_cam0 = new TFlowJPEnc(src_info->width, src_info->height, buf_cli_recording_cam0->tflow_bufs);
+            jp_enc_cam0 = new TFlowJPEnc(in_frame_info_rec_cam0.width, in_frame_info_rec_cam0.height, buf_cli_recording_cam0->tflow_bufs);
             break;
         case 1:
+            in_frame_info_rec_cam1 = _in_frame_info;
             if (jp_enc_cam1) delete jp_enc_cam1;
-            jp_enc_cam1 = new TFlowJPEnc(src_info->width, src_info->height, buf_cli_recording_cam1->tflow_bufs);
+            jp_enc_cam1 = new TFlowJPEnc(in_frame_info_rec_cam1.width, in_frame_info_rec_cam1.height, buf_cli_recording_cam1->tflow_bufs);
             break;
         default:
             g_warning("Oooops - Unknown cam id %d", src_id);
     }
 
-}
-
-void TFlowVStream::onSrcReadyStreaming(int src_id, const TFlowBufPck::pck_src_info* src_info) 
-{
-    switch (src_info->format) {
-    case V4L2_PIX_FMT_GREY:
-        // Normally generated by TFlowCapture for IR camera (CAM0)
-        break;
-    case V4L2_PIX_FMT_NV12:
-    case V4L2_PIX_FMT_ABGR32:
-        // Normally generated by TFlowProcess or by TFlowCapture for RGB camera (CAM1)
-        break;
-    default:
-        // oops. Unknown format
-        g_warning("Oooops - Unknown frame format 0x%04X", src_info->format);
-        return;
-    }
-
-    const TFlowCtrlVStream::cfg_streaming *cfg = &ctrl.cmd_flds_cfg_streaming;
-
-    if (rtsp_streamer) {
-        delete rtsp_streamer;
-        rtsp_streamer = nullptr;
-    }
-
-#if RTSP_STREAMER
-    // TODO: ??? Support both streamers WS and RTSP or make them mutally exclusive on build time ?
-    //   
-    if (cfg->type.v.num == TFlowCtrlVStreamUI::STREAMING_TYPE_RTSP) {
-        // rtsp_streamer check is format changed? force to close session? or resend session config (w x h format)
-        const auto rtsp_streamer_cfg =
-            (TFlowRTSPStreamerCfg::cfg_rtsp_streamer*)cfg->rtsp_streamer.v.ref;
-
-        rtsp_streamer = new TFlowRTSPVStreamer(src_info->width, src_info->height, rtsp_streamer_cfg);
-    }
-#endif
-
-}
-
-
-int TFlowVStream::setStreamingSrc(TFlowCtrlVStreamUI::VIDEO_SRC src,
-    TFlowCtrlVStreamUI::STREAMING_TYPE type)
-{
-    // Close current stream in any case
-    if (buf_cli_streaming) {
-        delete buf_cli_streaming;
-        buf_cli_streaming = nullptr;
-    }
-
-    if (rtsp_streamer) {
-        delete rtsp_streamer;
-        rtsp_streamer = nullptr;
-    }
-
-    if (type == TFlowCtrlVStreamUI::STREAMING_TYPE_DIS) {
-        return 0;
-    }
-
-    if (type == TFlowCtrlVStreamUI::STREAMING_TYPE_RTSP) {
-        // RTSP streamer created on "SRC ready" as it depends on frame format,
-        // nothing to do here.
-        // TODO: ?Start streaming TV grid or noisy screen until SRC ready?
-    }
-
-    const char *srv_name = 
-        (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM0) ? "com.reedl.tflow.capture0.buf-server" :
-        (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM1) ? "com.reedl.tflow.capture1.buf-server" :
-        (src == TFlowCtrlVStreamUI::VIDEO_SRC_PROC) ? "com.reedl.tflow.process.buf-server" : "";
-
-    buf_cli_streaming = new TFlowBufCli(
-        "TFlowVStream", srv_name, 0,
-        std::bind(&TFlowVStream::onFrameStreaming,      this, std::placeholders::_1, std::placeholders::_2),   // TFlowBufCli::app_onFrame()
-        std::bind(&TFlowVStream::onSrcReadyStreaming,   this, std::placeholders::_1, std::placeholders::_2),   // TFlowBufCli::app_onSrcReady()
-        std::bind(&TFlowVStream::onSrcGoneStreaming,    this, std::placeholders::_1),                          // TFlowBufCli::app_onSrcGone()
-        std::bind(&TFlowVStream::onConnect,             this, std::placeholders::_1),                          // TFlowBufCli::app_onConnect()
-        std::bind(&TFlowVStream::onDisconnect,          this, std::placeholders::_1));                         // TFlowBufCli::app_onDisconnect()
-
-    return 0;
 }
 
 int TFlowVStream::setRecordingSrc(int src, int en)
@@ -744,12 +615,9 @@ int TFlowVStream::setRecordingSrc(int src, int en)
     }
 
     if (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM0  ||
-        src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM01 || 
-        src == TFlowCtrlVStreamUI::VIDEO_SRC_PROC) {
-        const char *srv_name = 
-            (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM0 ) ? "com.reedl.tflow.capture0.buf-server" :
-            (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM01) ? "com.reedl.tflow.capture0.buf-server" :
-            (src == TFlowCtrlVStreamUI::VIDEO_SRC_PROC ) ? "com.reedl.tflow.process.buf-server" : "";
+        src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM01) {
+
+        const char *srv_name = "com.reedl.tflow.capture0.buf-server";
 
         buf_cli_recording_cam0 = new TFlowBufCli(
             "TFlowVStreamRecCAM0", srv_name, 0,
@@ -764,9 +632,6 @@ int TFlowVStream::setRecordingSrc(int src, int en)
         src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM01) {
 
         const char *srv_name = "com.reedl.tflow.capture1.buf-server";
-        //const char *srv_name = 
-        //    (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM1 ) ? "com.reedl.tflow.capture1.buf-server" :
-        //    (src == TFlowCtrlVStreamUI::VIDEO_SRC_CAM01) ? "com.reedl.tflow.capture1.buf-server" : "";
 
         buf_cli_recording_cam1 = new TFlowBufCli(
             "TFlowVStreamRecCAM1", srv_name, 1,
@@ -779,29 +644,3 @@ int TFlowVStream::setRecordingSrc(int src, int en)
 
     return 0;
 }
-
-#if 0
-
-    if (ws_streamer) {
-        ws_streamer->stop();
-    }
-
-    if (cfg->type.v.num == TFlowCtrlVStreamUI::STREAMING_TYPE_WS) {
-        if (ws_streamer) {
-            ws_streamer->start(src_info->width, src_info->height, src_info->format);
-        }
-    }
-
-
-    if (type == TFlowCtrlVStreamUI::STREAMING_TYPE_WS) {
-        if (!ws_streamer) {
-            const auto ws_streamer_cfg =
-                (TFlowWSStreamerCfg::cfg_ws_streamer*)ctrl.cmd_flds_cfg_streaming.ws_streamer.v.ref;
-
-            // WebSocket running even if an input source doesn't exist yet.
-            // Upon Src ready ws_streamer->start will be triggered
-            ws_streamer = new TFlowWsVStreamer(ws_streamer_cfg);
-        }
-    }
-    else
-#endif
