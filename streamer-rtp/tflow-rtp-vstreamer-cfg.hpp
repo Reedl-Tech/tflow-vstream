@@ -1,11 +1,38 @@
 #pragma once
 
-#include "../tflow-ctrl.hpp"
-#include "../encoder-v4l2/tflow-v4l2enc-cfg.hpp"
+#include "tflow-ctrl.hpp"
+#include "encoder-v4l2/tflow-v4l2enc-cfg.hpp"
 
 class TFlowRTPStreamerUI : private TFlowCtrlUI {
 
 public:
+
+    enum VIDEO_SRC {
+        VIDEO_SRC_DIS   = 0,
+        VIDEO_SRC_CAM0  = 1,
+        VIDEO_SRC_CAM1  = 2,
+        VIDEO_SRC_CAM01 = 3,
+        VIDEO_SRC_PROC  = 4,
+        VIDEO_SRC_LAST  = 5,
+        VIDEO_SRC_NUM   = VIDEO_SRC_LAST + 1
+    };
+
+    const char *rtp_video_src_entries[VIDEO_SRC_NUM] = {
+        [VIDEO_SRC_DIS  ] = "Disabled",
+        [VIDEO_SRC_CAM0 ] = "CAM 0",
+        [VIDEO_SRC_CAM1 ] = "CAM 1",
+        [VIDEO_SRC_CAM01] = "CAM 0+1",
+        [VIDEO_SRC_PROC ] = "Process",
+        [VIDEO_SRC_LAST ] = nullptr 
+    };
+
+    TFlowCtrlUI::uictrl ui_rtp_video_src = {
+        .label = "Video source",
+        .label_pos = 0,
+        .type = TFlowCtrlUI::UICTRL_TYPE::DROPDOWN,
+        .size = 6,
+        .dropdown = {.val = (const char **)&rtp_video_src_entries}
+    };
 
     // TODO: add grep mask for IP adress
     struct uictrl ui_edit_remote_addr = {
@@ -44,15 +71,17 @@ public:
 
     struct cfg_rtp_streamer {
         TFlowCtrl::tflow_cmd_field_t   head;
+        TFlowCtrl::tflow_cmd_field_t   src;
         TFlowCtrl::tflow_cmd_field_t   udp_local_addr;
         TFlowCtrl::tflow_cmd_field_t   udp_remote_addr;
         TFlowCtrl::tflow_cmd_field_t   v4l2_enc;
         TFlowCtrl::tflow_cmd_field_t   eomsg;
     } cmd_flds_cfg_rtp_streamer = {
         TFLOW_CMD_HEAD("RTP Streamer"),
-        .udp_local_addr  = { "local_addr",   TFlowCtrl::CFT_STR, 0, {.str = strdup("0.0.0.0:21040")}, &ui_edit_local_addr},
-        .udp_remote_addr = { "remote_addr",  TFlowCtrl::CFT_STR, 0, {.str = strdup("192.168.2.10:21040")}, &ui_edit_remote_addr},
-        .v4l2_enc        = { "rtp_v4l2_enc", TFlowCtrl::CFT_REF, 0, {.ref = &cmd_flds_cfg_v4l2_enc.head}, &ui_group_def},
+        .src             = { "rtp_src",         TFlowCtrl::CFT_NUM, 0, {.num = VIDEO_SRC_PROC }, &ui_rtp_video_src },
+        .udp_local_addr  = { "rtp_local_addr",  TFlowCtrl::CFT_STR, 0, {.str = strdup("0.0.0.0:21040")}, &ui_edit_local_addr},
+        .udp_remote_addr = { "rtp_remote_addr", TFlowCtrl::CFT_STR, 0, {.str = strdup("192.168.2.10:21040")}, &ui_edit_remote_addr},
+        .v4l2_enc        = { "rtp_v4l2_enc",    TFlowCtrl::CFT_REF, 0, {.ref = &cmd_flds_cfg_v4l2_enc.head}, &ui_group_def},
         TFLOW_CMD_EOMSG
     };
 

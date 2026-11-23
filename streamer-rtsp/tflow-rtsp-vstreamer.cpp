@@ -1,4 +1,4 @@
-#include "../tflow-build-cfg.hpp"
+#include "tflow-build-cfg.hpp"
 #include <cassert>
 #include <unistd.h>
 #include <fcntl.h>
@@ -12,7 +12,7 @@
 
 #include <json11.hpp>
 
-#include "../encoder-v4l2/tflow-v4l2enc.hpp"
+#include "encoder-v4l2/tflow-v4l2enc.hpp"
 #include "tflow-rtsp-vstreamer.hpp"
 
 TFlowRTSPStreamerCfg tflow_rtsp_streamer_cfg;

@@ -1,4 +1,4 @@
-#include "../tflow-build-cfg.hpp"
+#include "tflow-build-cfg.hpp"
 #include <cstdlib>
 #include <functional>
 #include <thread>
@@ -16,8 +16,8 @@
 #include <sys/mman.h>
 #include <json11.hpp>
 
-#include "../tflow-buf.hpp"
-#include "../tflow-perfmon.hpp"
+#include "tflow-buf.hpp"
+#include "tflow-perfmon.hpp"
 
 #include "tflow-v4l2enc.hpp"
 
@@ -276,6 +276,71 @@ void TFlowEnc::EncThread()
     return;
 }
 
+void TFlowEnc::fillBuffer(TFlowBuf& buf_enc, const TFlowBuf& buf_in)
+{
+    const uint8_t* data_buff;
+    size_t data_buff_len;
+
+    data_buff = (uint8_t*)buf_in.start;
+    data_buff_len = buf_in.length;
+
+    // AV: Should be ommitted in case of AUX data  become much bigger.
+    //     For ex. passing as an argument, as buf_in also holds copy of AUX data
+    //     This excessive copy can be ommited.
+    memcpy(buf_enc.aux_data, buf_in.aux_data, buf_in.aux_data_len);
+    buf_enc.aux_data_len = buf_in.aux_data_len;
+
+    buf_enc.ts = buf_in.ts;
+    buf_enc.sequence = buf_in.sequence;
+
+    if (in_frame_info.format == V4L2_PIX_FMT_NV12) {
+        // Streamer uses NV12 as an input format
+        g_critical("Enc: bad frame fmt 0x%04X", in_frame_info.format);
+        assert(0);
+        // ^^^ NV12 needs to be checked
+        // memcpy(buf_enc.start, data_buff, data_buff_len);
+    }
+    else if (in_frame_info.format == V4L2_PIX_FMT_ABGR32) {
+        memcpy(buf_enc.start, data_buff, data_buff_len);
+        // TODO: consider zero copy buffer handling.
+        //       I.e. pass src memory to encoder on creation.
+    }
+    else if (in_frame_info.format == V4L2_PIX_FMT_GREY) {
+        // Convert GREY to NV12. 
+        // Y += 16, U = 128, V = 128;
+        // Let's ignore proper conversion (Y+=16) for a while, just copy Y 
+        // component. UV component are not affected by GREY frame thus they can
+        // be prefilled upon buffer creation. See TFlowWsVStreamer::start()
+        memcpy(buf_enc.start, data_buff, data_buff_len);
+    }
+    
+}
+
+int TFlowEnc::onFrame(TFlowBuf& buf_in)
+{
+    TFlowBuf* buf_enc = getFreeInputBuffer();
+
+    if (buf_enc) {
+        // TODO: implemtent Meta data sending along with encoded frame
+        //       to move dashboard rendering on the host side
+
+        // Streamer receives aux data via shared memory
+        // tflow_buf_in.aux_data = msg_consume->aux_data; 
+        // tflow_buf_in.aux_data_len = msg_consume->aux_data_len; 
+
+        fillBuffer(*buf_enc, buf_in);
+        enqueueInputBuffer(*buf_enc);
+    }
+    else {
+        static int cnt = 0;
+        PRESC(0x3F) {
+            g_info("Enc [%s ]: can't get free buffer %d. ", cfg->head.name, cnt++);
+        }
+    }
+
+    return 0;
+}
+
 int TFlowEnc::onInputReleased(TFlowBuf& buf)
 {
     assert(buf.state == TFlowBuf::BUF_STATE_DRIVER);
@@ -491,10 +556,17 @@ int TFlowEnc::prepareBuffers()
 
     input_bufs.reserve(bufs_num);
     for (int i = 0; i < bufs_num; i++) {
-        input_bufs.emplace_back(enc_dev_fd, input_buf_type, i, 1);
+        auto &in_buf = input_bufs.emplace_back(enc_dev_fd, input_buf_type, i, 1);
 #if CODE_BROWSE
         TFlowBuf(enc_dev_fd, input_buf_type, i, 1);
 #endif
+        if (in_frame_info.format == V4L2_PIX_FMT_GREY) {
+            // GREY to NV12 conversion.
+            // The input buffer will be reused and GREY frame doesn't affect UV
+            // components. Thus, prefill UV here and don't touch during a new 
+            // frame copying.
+            memset(in_buf.start, 128, in_buf.length);
+        }
     }
 
     return rc;
@@ -516,9 +588,9 @@ int TFlowEnc::enumFrameInervals()
     int rc = 0;
     v4l2_frmivalenum  frame_interval = { 0 };
 
-    frame_interval.pixel_format = V4L2_PIX_FMT_HEVC; // V4L2_PIX_FMT_BGR32;
-    frame_interval.width = width;
-    frame_interval.height = height;
+    frame_interval.pixel_format = V4L2_PIX_FMT_HEVC;
+    frame_interval.width = in_frame_info.width;
+    frame_interval.height = in_frame_info.height;
     frame_interval.index = 0;
 
     while (rc == 0) {
@@ -566,6 +638,19 @@ int TFlowEnc::setFrameInterval()
 
 int TFlowEnc::setInputFormat()
 {
+    uint32_t enc_frame_fmt;
+
+    switch (in_frame_info.format) {
+    case V4L2_PIX_FMT_GREY:
+        enc_frame_fmt = V4L2_PIX_FMT_NV12;
+        break;
+    case V4L2_PIX_FMT_ABGR32:
+        enc_frame_fmt = V4L2_PIX_FMT_ABGR32;
+        break;
+    default:
+        assert(0);
+    }
+
     v4l2_format v4l2_fmt = {0};
 
     v4l2_fmt.type = input_buf_type;
@@ -574,11 +659,11 @@ int TFlowEnc::setInputFormat()
         return -1;
     }
 
-    // TODO: match format with one from ENUM
+    // TODO: match format with one from encoder's ENUM
     // Set parameters passed as inputs to constructor
-    v4l2_fmt.fmt.pix_mp.width = width;
-    v4l2_fmt.fmt.pix_mp.height = height;
-    v4l2_fmt.fmt.pix_mp.pixelformat = fmt;    // V4L2_PIX_FMT_BGR32; V4L2_PIX_FMT_NV12
+    v4l2_fmt.fmt.pix_mp.width = in_frame_info.width;
+    v4l2_fmt.fmt.pix_mp.height = in_frame_info.height;
+    v4l2_fmt.fmt.pix_mp.pixelformat = enc_frame_fmt;    // V4L2_PIX_FMT_BGR32; V4L2_PIX_FMT_NV12
 //    v4l2_fmt.v4l2_fmt.pix_mp.field = V4L2_FIELD_NONE;
 
     if (-1 == ioctl(enc_dev_fd, VIDIOC_S_FMT, &v4l2_fmt)) {
@@ -587,7 +672,7 @@ int TFlowEnc::setInputFormat()
     }
 
     // Encoder may request another plane WxH despite enumerated frame sizes.
-    // As Encoder gets frame's configuration from a parent module (for ex. TFlowDashboard),
+    // As Encoder gets frame's configuration from a parent module (BufCli),
     // please modify one's configuration accordingly.
     // assert(width ==  v4l2_fmt.v4l2_fmt.pix_mp.plane_fmt[0].bytesperline); <-- not valid for ABGR format
 
@@ -924,7 +1009,7 @@ TFlowEnc::~TFlowEnc()
 
 }
 
-TFlowEnc::TFlowEnc(int _w, int _h, uint32_t _fmt,
+TFlowEnc::TFlowEnc(const struct frame_info &_in_frame_info,
     const TFlowEncCfg::cfg_v4l2_enc *v4l2_enc_cfg,
     std::function<int(TFlowBuf &buf)> _app_onFrameEncoded) :
     app_onFrameEncoded(_app_onFrameEncoded)
@@ -958,11 +1043,10 @@ TFlowEnc::TFlowEnc(int _w, int _h, uint32_t _fmt,
     input_buf_type = (enum v4l2_buf_type)0;
     output_buf_type = (enum v4l2_buf_type)0;
 
-    // TODO: Validate w x h for bad values
+    // TODO: Validate in_frame_info width x height for bad values
     //       or check on Encoder init() upon frame sizes enumeration
-    width = _w;
-    height = _h;
-    fmt = _fmt;
+    in_frame_info = _in_frame_info;
+    in_enc_fmt = 0; // Set in Init();
 
     // Template used on DQBUF 
     memset(&dqbuf_out, 0, sizeof(dqbuf_out));

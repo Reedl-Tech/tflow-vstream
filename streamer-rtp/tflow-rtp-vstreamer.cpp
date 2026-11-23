@@ -1,4 +1,4 @@
-#include "../tflow-build-cfg.hpp"
+#include "tflow-build-cfg.hpp"
 #include <cassert>
 #include <unistd.h>
 #include <fcntl.h>
@@ -8,11 +8,12 @@
 #include <arpa/inet.h>
 #include <poll.h>
 
-#include <glib-unix.h>
+#include "tflow-glib.hpp"
+#include "tflow-common.hpp"
 
 #include <json11.hpp>
 
-#include "../encoder-v4l2/tflow-v4l2enc.hpp"
+#include "encoder-v4l2/tflow-v4l2enc.hpp"
 #include "tflow-rtp-vstreamer.hpp"
 
 TFlowRTPStreamerCfg tflow_rtp_streamer_cfg;
@@ -38,6 +39,16 @@ static double diff_timespec_msec(
 {
     struct timespec d_tp = diff_timespec(time1, time0);
     return d_tp.tv_sec * 1000 + (double)d_tp.tv_nsec / (1000 * 1000);
+}
+
+
+static gboolean tflow_rtp_vstreamer_on_idle(gpointer data)
+{
+    TFlowRTPVStreamer* rtp_streamer = (TFlowRTPVStreamer*)data;
+
+    rtp_streamer->onIdle_no_ts();
+
+    return G_SOURCE_CONTINUE;
 }
 
 void TFlowRTPVStreamer::CloseUDP()
@@ -91,6 +102,10 @@ int TFlowRTPVStreamer::OpenUDP()
 {
     int rc;
     
+    addr_nok = 0;
+    addr_nok |= parseCfgAddrPort(&remote_addr, cfg->udp_remote_addr.v.c_str);
+    addr_nok |= parseCfgAddrPort(&local_addr,  cfg->udp_local_addr.v.c_str);
+
     if ( addr_nok ) {
         g_warning("TFlowUDP: Bad address format");
         return -1;
@@ -123,7 +138,6 @@ int TFlowRTPVStreamer::OpenUDP()
 
 int TFlowRTPVStreamer::onFrameEncoded(TFlowBuf &tflow_buf)
 {
-
     size_t enc_buf_len = tflow_buf.v4l2_buf.m.planes->bytesused;
     uint8_t *enc_buf = (uint8_t *)tflow_buf.start;     
     uint32_t tot_enc_bytes_sent = 0;
@@ -159,9 +173,12 @@ int TFlowRTPVStreamer::onFrameEncoded(TFlowBuf &tflow_buf)
 
     do {
         uint32_t enc_bytes_to_send = 0;
+
+        // If socket isn't active don't even try to send
+        if (sck_state_flag.v != Flag::SET) break;
+        
         // Split packet to samller size segments as native IP packet is 1400 
         // bytes long. Max UDP packet is 65535
-
         rtp_hdr.extension = 0;
         rtp_hdr.mark = 0;
 
@@ -217,7 +234,7 @@ int TFlowRTPVStreamer::onFrameEncoded(TFlowBuf &tflow_buf)
         enc_mh.msg_iovlen = iov_idx;
         assert(iov_idx <= ARRAYSIZE(enc_iov));
 
-        rtp_hdr.seq = pck_seq++;
+        rtp_hdr.seq = enc_seq++;
 
         if (sck_fd != -1) {
             int rc = 0;
@@ -256,6 +273,7 @@ int TFlowRTPVStreamer::onFrameEncoded(TFlowBuf &tflow_buf)
     return 0;
 }
 
+#if 0
 void TFlowRTPVStreamer::fillBuffer(TFlowBuf& buf_enc, const TFlowBuf& buf_in)
 {
     const uint8_t* data_buff;
@@ -312,6 +330,7 @@ TFlowBuf* TFlowRTPVStreamer::getFreeBuffer()
     // Application requests buffer for feeding
     return encoder ? encoder->getFreeInputBuffer() : nullptr;
 }
+#endif
 
 void TFlowRTPVStreamer::onIdle_no_ts()
 {
@@ -321,23 +340,11 @@ void TFlowRTPVStreamer::onIdle_no_ts()
     onIdle(now_ts);
 }
 
-void TFlowRTPVStreamer::onFrame(const TFlowBuf& buf_in)
-{
-    TFlowBuf* enc_buf = getFreeBuffer();
-
-    if (enc_buf) {
-        fillBuffer(*enc_buf, buf_in);
-        consumeBuffer(*enc_buf);
-    }
-    else {
-        static int cnt = 0;
-        g_info("============== can't get free buffer %d =============", cnt++ );
-    }
-
-}
-
 void TFlowRTPVStreamer::onIdle(struct timespec now_ts)
 {
+    buf_cli_in_stream->onIdle(now_ts);
+
+    // TODO: Rework to use generic UDP class
     if (sck_state_flag.v == Flag::CLR) {
         if (diff_timespec_msec(&now_ts, &last_conn_check_ts) > 1000) {
             last_conn_check_ts = now_ts;
@@ -364,6 +371,8 @@ void TFlowRTPVStreamer::onIdle(struct timespec now_ts)
         else {
             sck_state_flag.v = Flag::SET;
             //app_onConnect();
+            // TODO: send "need a KEY frame" signal to encoder if already running
+            // if (encoder) encoder->need_key();
         }
         return;
     }
@@ -378,45 +387,143 @@ void TFlowRTPVStreamer::onIdle(struct timespec now_ts)
     }
 }
 
-TFlowRTPVStreamer::TFlowRTPVStreamer(int _w, int _h, uint32_t _in_fmt,
-    const TFlowRTPStreamerCfg::cfg_rtp_streamer *rtp_streamer_cfg)
+void TFlowRTPVStreamer::onConfigValidate(json11::Json::object& j_out_params,
+    TFlowRTPStreamerCfg::cfg_rtp_streamer* rw_cfg)
 {
-    int rc;
-    uint32_t enc_frame_fmt;
- 
-    cfg = rtp_streamer_cfg;
+}
 
-    frame_width = _w;
-    frame_height = _h;
-    in_frame_fmt = _in_fmt;
-
-    TFlowEncCfg::cfg_v4l2_enc *v4l2_enc_cfg = 
-        (TFlowEncCfg::cfg_v4l2_enc*)rtp_streamer_cfg->v4l2_enc.v.ref;
-
-    switch (in_frame_fmt) {
-    case V4L2_PIX_FMT_GREY:
-        enc_frame_fmt = V4L2_PIX_FMT_NV12;
-        break;
-    case V4L2_PIX_FMT_ABGR32:
-        enc_frame_fmt = V4L2_PIX_FMT_ABGR32;
-    default:
-        assert(0);
+int TFlowRTPVStreamer::onConfig()
+{
+    if (cfg->udp_local_addr.flags & TFlowCtrl::FIELD_FLAG::CHANGED ||
+        cfg->udp_remote_addr.flags & TFlowCtrl::FIELD_FLAG::CHANGED) {
+        sck_state_flag.v = Flag::FALL;
+        // TODO: Stop encoder and restart from a key frame upon a new socket
+        //       opened.
+        g_idle_add((GSourceFunc)tflow_rtp_vstreamer_on_idle, this);
     }
+
+    if (cfg->src.flags & TFlowCtrl::FIELD_FLAG::CHANGED) {
+
+        stop();
+
+        // Close current input stream in any case
+        if (buf_cli_in_stream) {
+            delete buf_cli_in_stream;
+            buf_cli_in_stream = nullptr;
+        }
+
+        TFlowRTPStreamerUI::VIDEO_SRC src = (TFlowRTPStreamerUI::VIDEO_SRC)cfg->src.v.num;
+
+        const char *srv_name = 
+            (src == TFlowRTPStreamerUI::VIDEO_SRC_CAM0) ? "com.reedl.tflow.capture0.buf-server" :
+            (src == TFlowRTPStreamerUI::VIDEO_SRC_CAM1) ? "com.reedl.tflow.capture1.buf-server" :
+            (src == TFlowRTPStreamerUI::VIDEO_SRC_PROC) ? "com.reedl.tflow.process.buf-server"  : "";
+
+        if (srv_name) {
+            buf_cli_in_stream = new TFlowBufCli(
+                "TFlowStreamer_RTP", srv_name, 0,
+                std::bind(&TFlowRTPVStreamer::onFrame,    this, std::placeholders::_1, std::placeholders::_2),   // TFlowBufCli::app_onFrame()
+                std::bind(&TFlowRTPVStreamer::onSrcReady, this, std::placeholders::_1, std::placeholders::_2),   // TFlowBufCli::app_onSrcReady()
+                std::bind(&TFlowRTPVStreamer::onSrcGone,  this, std::placeholders::_1),                          // TFlowBufCli::app_onSrcGone()
+                nullptr,
+                nullptr);
+        }
+    }
+
+    // Apply WebSocket streamer configuration here
+    if (encoder && cfg->v4l2_enc.flags & TFlowCtrl::FIELD_FLAG::CHANGED) {
+
+        int rc = encoder->onConfig();
+        if (rc == -1) {
+            // New configuration can be applied through full restart only
+            restart();
+        }
+    }
+
+    return 0;
+
+}
+
+void TFlowRTPVStreamer::onSrcGone(int src_id)
+{
+    stop();
+}
+
+void TFlowRTPVStreamer::onSrcReady(int src_id, const TFlowBufPck::pck_src_info* src_info) 
+{
+    switch (src_info->format) {
+    case V4L2_PIX_FMT_GREY:
+        // Normally generated by TFlowCapture for IR camera (CAM0)
+        break;
+    case V4L2_PIX_FMT_NV12:
+    case V4L2_PIX_FMT_ABGR32:
+        // Normally generated by TFlowProcess or by TFlowCapture for RGB camera (CAM1)
+        break;
+    default:
+        // oops. Unknown format
+        g_warning("Oooops - Unknown frame format 0x%04X", src_info->format);
+        return;
+    }
+
+    in_frame_info.width = src_info->width;
+    in_frame_info.height = src_info->height;
+    in_frame_info.format = src_info->format;
+
+    restart();
+}
+
+void TFlowRTPVStreamer::onFrame(int src_id, const TFlowBufPck::pck_consume* msg_consume)
+{
+    if (sck_state_flag.v != Flag::SET) {
+        return;
+    }
+
+    // TODO: Check received src_id vs configured source
+
+    assert(msg_consume->buff_index >= 0 && msg_consume->buff_index < buf_cli_in_stream->tflow_bufs.size());
+    TFlowBuf& tflow_buf_in = buf_cli_in_stream->tflow_bufs.at(msg_consume->buff_index);
+
+    memcpy(tflow_buf_in.aux_data, msg_consume->aux_data, msg_consume->aux_data_len);
+    tflow_buf_in.aux_data_len = msg_consume->aux_data_len;
+    tflow_buf_in.ts = msg_consume->ts;
+    tflow_buf_in.sequence = msg_consume->seq;
+
+    if (encoder) {
+        encoder->onFrame(tflow_buf_in);
+    }
+}
+
+TFlowRTPVStreamer::TFlowRTPVStreamer(
+    const TFlowRTPStreamerCfg::cfg_rtp_streamer* rtp_streamer_cfg)
+{
+    memset(&in_frame_info, 0, sizeof(struct frame_info));
+    encoder = nullptr;
+    buf_cli_in_stream = nullptr;
+
+    cfg = rtp_streamer_cfg;
+    last_idle_check = 0;
+    addr_nok = 1;
+}
+
+void TFlowRTPVStreamer::stop()
+{
+    if (encoder) {
+        delete encoder;
+        encoder = nullptr;
+    }
+
+}
+void TFlowRTPVStreamer::restart() 
+{
+    TFlowEncCfg::cfg_v4l2_enc *v4l2_enc_cfg = 
+        (TFlowEncCfg::cfg_v4l2_enc*)cfg->v4l2_enc.v.ref;
+
+    stop();
 
     // ATT: Encoder can be reconfigured in runtime, i.e. recreated. Thus, 
     //      DO NOT assume pointer is always exists.
-    encoder = new TFlowEnc(_w, _h, enc_frame_fmt, v4l2_enc_cfg,
+    encoder = new TFlowEnc(in_frame_info, v4l2_enc_cfg,
         std::bind(&TFlowRTPVStreamer::onFrameEncoded, this, std::placeholders::_1));
-
-    if (in_frame_fmt == V4L2_PIX_FMT_GREY) {
-        for (TFlowBuf& enc_buf : encoder->input_bufs) {
-            // GREY to NV12 conversion.
-            // The input buffer will be reused and GREY frame doesn't affect UV
-            // components. Thus, prefill UV here and don't touch during a new 
-            // frame copying.
-            memset(enc_buf.start, 128, enc_buf.length);
-        }
-    }
 
     if (v4l2_enc_cfg->codec.v.num == TFlowEncUI::ENC_CODEC_H264) {
         payload_type = 96;
@@ -428,15 +535,7 @@ TFlowRTPVStreamer::TFlowRTPVStreamer(int _w, int _h, uint32_t _in_fmt,
         assert(0);
     }
 
-    pck_seq = 0;
-
-    last_idle_check = 0;
-
-    addr_nok = 0;
-    addr_nok |= parseCfgAddrPort(&remote_addr, rtp_streamer_cfg->udp_remote_addr.v.c_str);
-    addr_nok |= parseCfgAddrPort(&local_addr, rtp_streamer_cfg->udp_local_addr.v.c_str);
-
-    OpenUDP();
+    enc_seq = 0;
 }
 
 TFlowRTPVStreamer::~TFlowRTPVStreamer()

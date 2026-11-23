@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../tflow-ctrl.hpp"
+#include "tflow-ctrl.hpp"
 
 class TFlowEncUI : public TFlowCtrlUI {
 public:

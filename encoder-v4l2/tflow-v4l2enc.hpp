@@ -12,7 +12,7 @@
 class  TFlowEnc {
 public:
 
-    TFlowEnc(int w, int h, uint32_t fmt, 
+    TFlowEnc(const struct frame_info &in_frame_info,
         const TFlowEncCfg::cfg_v4l2_enc *v4l2_enc_cfg,
         std::function<int(TFlowBuf &buf)> _app_onFrameEncoded);
 
@@ -30,6 +30,7 @@ public:
     int subscribeEvent(unsigned int event_type);
     void createPollThread();
     int prepareBuffers();
+    void fillBuffer(TFlowBuf& buf_enc, const TFlowBuf& buf_in);
     int startStreams();
     int enqueueInputBuffer(TFlowBuf &buf);
     int enqueueOutputBuffer(TFlowBuf &buf);
@@ -38,6 +39,7 @@ public:
     int isDriverOutputBuffers();
     int onOutputReady(TFlowBuf &buf);
     int onInputReleased(TFlowBuf &buf);
+    int onFrame(TFlowBuf &buf);
 
     int onConfig(int force_update = 0);
     void onConfigValidate(json11::Json::object& j_out_params, TFlowEncCfg::cfg_v4l2_enc *rw_cfg);
@@ -53,9 +55,15 @@ public:
     v4l2_capability capa;
     enum v4l2_buf_type input_buf_type;       // 10 - V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE
     enum v4l2_buf_type output_buf_type;      //  9 - V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE
-    int width;
-    int height;
-    uint32_t fmt;                            // 
+    
+    struct frame_info in_frame_info;        // Streamer's input frame format may differs from the
+                                            // Encoder's input format. Format conversion will be
+                                            // performed on data buffer copy (see fillBuffer()).
+    //int width;
+    //int height;
+    uint32_t in_enc_fmt;                    // May differs from input frame format. For instance
+                                            // for input frame in Y8 format, encoder in format is NV12
+                                            // Conversion performed in fillBuffer()
 
     int frames_encoded;
     uint64_t encoded_bytes;

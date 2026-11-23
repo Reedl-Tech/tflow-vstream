@@ -2,34 +2,32 @@
 
 #include <netinet/ip.h>
 
-#include "../tflow-common.hpp"
-#include "../tflow-glib.hpp"
+#include "tflow-common.hpp"
+#include "tflow-glib.hpp"
 
-#include "../tflow-buf.hpp"
+#include "tflow-buf.hpp"
 
-#include "../encoder-v4l2/tflow-v4l2enc.hpp"
+#include "tflow-buf-cli.hpp"
+#include "encoder-v4l2/tflow-v4l2enc.hpp"
 
 #include "tflow-rtp-vstreamer-cfg.hpp" 
 
 class TFlowRTPVStreamer {
 public:
-    TFlowRTPVStreamer(int _w, int _h, uint32_t _in_fmt,
-        const TFlowRTPStreamerCfg::cfg_rtp_streamer *rtp_streamer_cfg);
+    TFlowRTPVStreamer(const TFlowRTPStreamerCfg::cfg_rtp_streamer *rtp_streamer_cfg);
     ~TFlowRTPVStreamer();
 
-    TFlowBuf* getFreeBuffer();
-    void fillBuffer(TFlowBuf& buf_enc, const TFlowBuf& buf_in);     // Should be part of TFlowEnc()
-    int consumeBuffer(TFlowBuf& buf);
+    void restart();
+    void stop();
     void onIdle_no_ts();
     void onIdle(struct timespec now_ts);
-    void onFrame(const TFlowBuf& buf_in);
+    void onConfigValidate(json11::Json::object& j_out_params, TFlowRTPStreamerCfg::cfg_rtp_streamer *rw_cfg);
+    int  onConfig();
 
     TFlowEnc *encoder;
+
 private:
-    int frame_width, frame_height;
-    uint32_t in_frame_fmt;  // Streamer's input frame format may differs from the
-                            // Encoder's input format. Format conversion will be
-                            // performed on data buffer copy (see fillBuffer()).
+    
     int OpenUDP();
     void CloseUDP();
 
@@ -64,15 +62,26 @@ private:
 
     const TFlowRTPStreamerCfg::cfg_rtp_streamer *cfg;
 
+    struct frame_info in_frame_info;   // Streamer's input frame format may differs from the
+                                       // Encoder's input format. Format conversion will be
+                                       // performed on data buffer copy (see fillBuffer()).
+
+    // Input stream client (TFlowBufCli) and its callbacks
+    TFlowBufCli *buf_cli_in_stream;
+    void onFrame(int src_id, const TFlowBufPck::pck_consume* msg_consume);
+    void onSrcReady(int src_id, const TFlowBufPck::pck_src_info* src_info);
+    void onSrcGone(int src_id);
+
     clock_t last_idle_check;
 
+    // TODO: Rework to UDP class
     int sck_fd;
     Flag sck_state_flag;
     struct timespec last_send_ts;
     struct timespec last_conn_check_ts;
 
     uint8_t payload_type;
-    uint16_t pck_seq;
+    uint16_t enc_seq;           // TODO: Is it part of encoder?
 
     int addr_nok;
     struct sockaddr_in local_addr;

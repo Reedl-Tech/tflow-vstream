@@ -74,6 +74,11 @@ TFlowVStream::~TFlowVStream()
         ws_streamer = nullptr;
     }
 
+    if (rtp_streamer) {
+        delete rtp_streamer;
+        rtp_streamer = nullptr;
+    }
+
     if (buf_cli_recording_cam0) {
         delete buf_cli_recording_cam0;
         buf_cli_recording_cam0 = nullptr;
@@ -213,6 +218,10 @@ void TFlowVStream::OnIdle()
 
     if (ws_streamer) {
         ws_streamer->onIdle(now_ts);
+    }
+
+    if (rtp_streamer) {
+        rtp_streamer->onIdle(now_ts);
     }
 
     ctrl.ctrl_srv.onIdle(now_ts);
@@ -477,10 +486,6 @@ void TFlowVStream::onFrameStreaming(int src_id, const TFlowBufPck::pck_consume* 
     if (rtsp_streamer) {
         rtsp_streamer->onFrame(tflow_buf_in);
     }
-
-    if (rtp_streamer) {      
-        rtp_streamer->onFrame(tflow_buf_in);
-    }
 }
 
 void TFlowVStream::onFrameRecording(int src_id, const TFlowBufPck::pck_consume* msg_consume)
@@ -604,11 +609,6 @@ void TFlowVStream::onSrcGoneStreaming(int src_id)
         delete rtsp_streamer;
         rtsp_streamer = nullptr;
     }
-
-    if (rtp_streamer) {
-        delete rtp_streamer;
-        rtp_streamer = nullptr;
-    }
 }
 
 void TFlowVStream::onConnect(int src_id) {}
@@ -669,14 +669,6 @@ void TFlowVStream::onSrcReadyStreaming(int src_id, const TFlowBufPck::pck_src_in
         delete rtsp_streamer;
         rtsp_streamer = nullptr;
     }
-    if (ws_streamer) {
-        ws_streamer->stop();
-    }
-
-    if (rtp_streamer) {
-        delete rtp_streamer;
-        rtp_streamer = nullptr;
-    }
 
 #if RTSP_STREAMER
     // TODO: ??? Support both streamers WS and RTSP or make them mutally exclusive on build time ?
@@ -690,15 +682,6 @@ void TFlowVStream::onSrcReadyStreaming(int src_id, const TFlowBufPck::pck_src_in
     }
 #endif
 
-#if RTP_STREAMER
-    if (cfg->type.v.num == TFlowCtrlVStreamUI::STREAMING_TYPE_RTP) {
-        const auto rtp_streamer_cfg =
-            (TFlowRTPStreamerCfg::cfg_rtp_streamer*)cfg->rtp_streamer.v.ref;
-
-        rtp_streamer = new TFlowRTPVStreamer(src_info->width, src_info->height,
-            src_info->format, rtp_streamer_cfg);
-    }
-#endif
 }
 
 
@@ -716,22 +699,12 @@ int TFlowVStream::setStreamingSrc(TFlowCtrlVStreamUI::VIDEO_SRC src,
         rtsp_streamer = nullptr;
     }
 
-    if (rtp_streamer) {
-        delete rtp_streamer;
-        rtp_streamer = nullptr;
-    }
-
     if (type == TFlowCtrlVStreamUI::STREAMING_TYPE_DIS) {
         return 0;
     }
 
     if (type == TFlowCtrlVStreamUI::STREAMING_TYPE_RTSP) {
         // RTSP streamer created on "SRC ready" as it depends on frame format,
-        // nothing to do here.
-        // TODO: ?Start streaming TV grid or noisy screen until SRC ready?
-    }
-    else if (type == TFlowCtrlVStreamUI::STREAMING_TYPE_RTP) {
-        // RTP streamer created on "SRC ready" as it depends on frame format,
         // nothing to do here.
         // TODO: ?Start streaming TV grid or noisy screen until SRC ready?
     }

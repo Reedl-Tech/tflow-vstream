@@ -8,6 +8,8 @@
 
 #include "tflow-buf.hpp"
 
+#include "tflow-buf-cli.hpp"
+
 #include "encoder-v4l2/tflow-v4l2enc.hpp"
 
 #include "tflow-ws-vstreamer-cfg.hpp" 

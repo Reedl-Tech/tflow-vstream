@@ -164,6 +164,18 @@ int TFlowCtrlVStream::cmd_cb_streaming_config(const json11::Json& j_in_params, J
 
     }
 
+    if (cmd_flds_cfg_streaming.rtp_streamer.flags & FIELD_FLAG::CHANGED) {
+        auto rtp_streamer_rw_cfg = (TFlowRTPStreamerCfg::cfg_rtp_streamer*)
+            cmd_flds_cfg_streaming.rtp_streamer.v.ref;
+
+        if (app.rtp_streamer == nullptr) {
+            app.rtp_streamer = new TFlowRTPVStreamer(rtp_streamer_rw_cfg);
+        }
+
+        app.rtp_streamer->onConfigValidate(j_out_params, rtp_streamer_rw_cfg);
+        app.rtp_streamer->onConfig();
+    }
+
     if (cmd_flds_cfg_streaming.capture_en.flags & FIELD_FLAG::CHANGED) {
         g_dbg_consume_en = cmd_flds_cfg_streaming.capture_en.v.num;
     }

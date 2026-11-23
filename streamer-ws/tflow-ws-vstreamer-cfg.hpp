@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../tflow-ctrl.hpp"
-#include "../encoder-v4l2/tflow-v4l2enc-cfg.hpp"
+#include "tflow-ctrl.hpp"
+#include "encoder-v4l2/tflow-v4l2enc-cfg.hpp"
 
 class TFlowWSStreamerUI : private TFlowCtrlUI {
 

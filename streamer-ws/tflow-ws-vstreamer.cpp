@@ -1,4 +1,4 @@
-#include "../tflow-build-cfg.hpp"
+#include "tflow-build-cfg.hpp"
 #include <unistd.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -9,7 +9,6 @@
 #include "tflow-common.hpp"
 #include "tflow-glib.hpp"
 
-#include "tflow-buf-cli.hpp"
 #include "encoder-v4l2/tflow-v4l2enc.hpp"
 #include "tflow-ws-vstreamer.hpp"
 
@@ -295,9 +294,12 @@ int TFlowWsVStreamer::restart()
     TFlowEncCfg::cfg_v4l2_enc *v4l2_enc_cfg = 
         (TFlowEncCfg::cfg_v4l2_enc*)cfg->v4l2_enc.v.ref;
 
-    uint32_t enc_frame_fmt;
-
     stop();
+
+    // ATT: Encoder can be reconfigured in runtime, i.e. recreated. Thus, 
+    //      DO NOT assume pointer is always exists.
+    encoder = new TFlowEnc(in_frame_info, v4l2_enc_cfg,
+        std::bind(&TFlowWsVStreamer::onFrameEncoded, this, std::placeholders::_1));
 
     if (v4l2_enc_cfg->codec.v.num == TFlowEncUI::ENC_CODEC_H264) {
         packet_type_key = 0x344B0000;
@@ -309,32 +311,6 @@ int TFlowWsVStreamer::restart()
     } else {
         g_critical("WsStreamer: Bad codec type - %d", v4l2_enc_cfg->codec.v.num);
         assert(0);
-    }
-
-    switch (in_frame_info.format) {
-    case V4L2_PIX_FMT_GREY: 
-        enc_frame_fmt = V4L2_PIX_FMT_NV12;
-        break;
-    case V4L2_PIX_FMT_ABGR32:
-        enc_frame_fmt = V4L2_PIX_FMT_ABGR32;
-        break;
-    default:
-        assert(0);
-    }
-                                          
-    // ATT: Encoder can be reconfigured in runtime, i.e. recreated. Thus, 
-    //      DO NOT assume pointer is always exists.
-    encoder = new TFlowEnc(in_frame_info.width, in_frame_info.height, enc_frame_fmt, v4l2_enc_cfg,
-        std::bind(&TFlowWsVStreamer::onFrameEncoded, this, std::placeholders::_1));
-
-    if (in_frame_info.format == V4L2_PIX_FMT_GREY) {
-        for (TFlowBuf& enc_buf : encoder->input_bufs) {
-            // GREY to NV12 conversion.
-            // The input buffer will be reused and GREY frame doesn't affect UV
-            // components. Thus, prefill UV here and don't touch during a new 
-            // frame copying.
-            memset(enc_buf.start, 128, enc_buf.length);
-        }
     }
 
     enc_seq = 0;

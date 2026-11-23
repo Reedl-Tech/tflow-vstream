@@ -83,9 +83,9 @@ public:
 
     GSource* vdump_timeout_src;
 
-    TFlowWsVStreamer *ws_streamer;
-    TFlowRTPVStreamer* rtp_streamer;
-    TFlowRTSPVStreamer* rtsp_streamer;
+    TFlowWsVStreamer   *ws_streamer;
+    TFlowRTPVStreamer  *rtp_streamer;
+    TFlowRTSPVStreamer *rtsp_streamer;
 
 private:
 
