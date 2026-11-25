@@ -326,7 +326,6 @@ void TFlowWsVStreamer::onSrcGone(int src_id)
 void TFlowWsVStreamer::onSrcReady(int src_id, const struct frame_info &_in_frame_info)
 {
     in_frame_info = _in_frame_info;
-
     restart();
 }
 
@@ -410,6 +409,7 @@ void TFlowWsVStreamer::stop()
     if (encoder) {
         delete encoder;
         encoder = nullptr;
+        memset(&in_frame_info, 0, sizeof(in_frame_info));
     }
 }
 
@@ -453,8 +453,6 @@ void TFlowWsVStreamer::onConfigValidate(json11::Json::object& j_out_params,
 
 int TFlowWsVStreamer::onConfig()
 {
-    int restart_required = 0;
-
     if (cfg->src.flags & TFlowCtrl::FIELD_FLAG::CHANGED) {
 
         stop();
@@ -470,7 +468,7 @@ int TFlowWsVStreamer::onConfig()
         const char *srv_name = 
             (src == TFlowWSStreamerUI::VIDEO_SRC_CAM0) ? "com.reedl.tflow.capture0.buf-server" :
             (src == TFlowWSStreamerUI::VIDEO_SRC_CAM1) ? "com.reedl.tflow.capture1.buf-server" :
-            (src == TFlowWSStreamerUI::VIDEO_SRC_PROC) ? "com.reedl.tflow.process.buf-server"  : "";
+            (src == TFlowWSStreamerUI::VIDEO_SRC_PROC) ? "com.reedl.tflow.process.buf-server"  : nullptr;
 
         if (srv_name) {
             buf_cli_in_stream = new TFlowBufCli(
@@ -480,9 +478,12 @@ int TFlowWsVStreamer::onConfig()
                 std::bind(&TFlowWsVStreamer::onSrcGone,  this, std::placeholders::_1),                          // TFlowBufCli::app_onSrcGone()
                 nullptr,
                 nullptr);
-
-            restart_required = 1;
         }
+        
+        // In case of input source changed, other configuration doesn't matter
+        // as it was applyed on SrcReady
+        return 0;
+
     } // End of SRC Changed
 
     // Apply WebSocket streamer configuration here
@@ -491,11 +492,9 @@ int TFlowWsVStreamer::onConfig()
         int rc = encoder->onConfig();
         if (rc == -1) {
             // New configuration can be applied through full restart only
-            restart_required = 1;
+            restart();
         }
     }
-
-    if (restart_required) restart();
 
     return 0;
 }

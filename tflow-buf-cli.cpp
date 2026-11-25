@@ -353,7 +353,11 @@ int TFlowBufCli::onMsg()
             //     held to avoid excessive copy between packets. Not critical
             //     as long as AUX data is small enough.
             assert(0);
-            sendRedeem(-1);        }
+            
+            if (sendRedeem(-1)) {
+                // Link broken
+            }
+        }
         break;
     }
     case TFlowBufPck::TFLOWBUF_MSG_PING:
@@ -495,10 +499,11 @@ int TFlowBufCli::sendRedeem(int index)
     msg_redeem.buff_index = index;
     msg_redeem.need_more = true;
 
+    pending_buf_request++;
+
     int res = sendMsg(msg_redeem, TFlowBufPck::TFLOWBUF_MSG_REDEEM);
     if (res) return res;
 
-    pending_buf_request++;
     return 0;
 }
 

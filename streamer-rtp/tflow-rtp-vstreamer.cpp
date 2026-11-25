@@ -342,7 +342,9 @@ void TFlowRTPVStreamer::onIdle_no_ts()
 
 void TFlowRTPVStreamer::onIdle(struct timespec now_ts)
 {
-    buf_cli_in_stream->onIdle(now_ts);
+    if (buf_cli_in_stream) {
+        buf_cli_in_stream->onIdle(now_ts);
+    }
 
     // TODO: Rework to use generic UDP class
     if (sck_state_flag.v == Flag::CLR) {
@@ -357,6 +359,7 @@ void TFlowRTPVStreamer::onIdle(struct timespec now_ts)
         // Normal operation. 
         if (diff_timespec_msec(&now_ts, &last_send_ts) > 1000) {
             // Do something lazy;
+            // Ping?
         }
         return;
     }
@@ -394,8 +397,6 @@ void TFlowRTPVStreamer::onConfigValidate(json11::Json::object& j_out_params,
 
 int TFlowRTPVStreamer::onConfig()
 {
-    int restart_required = 0;
-
     if (cfg->udp_local_addr.flags & TFlowCtrl::FIELD_FLAG::CHANGED ||
         cfg->udp_remote_addr.flags & TFlowCtrl::FIELD_FLAG::CHANGED) {
         sck_state_flag.v = Flag::FALL;
@@ -419,7 +420,7 @@ int TFlowRTPVStreamer::onConfig()
         const char *srv_name = 
             (src == TFlowRTPStreamerUI::VIDEO_SRC_CAM0) ? "com.reedl.tflow.capture0.buf-server" :
             (src == TFlowRTPStreamerUI::VIDEO_SRC_CAM1) ? "com.reedl.tflow.capture1.buf-server" :
-            (src == TFlowRTPStreamerUI::VIDEO_SRC_PROC) ? "com.reedl.tflow.process.buf-server"  : "";
+            (src == TFlowRTPStreamerUI::VIDEO_SRC_PROC) ? "com.reedl.tflow.process.buf-server"  : nullptr;
 
         if (srv_name) {
             buf_cli_in_stream = new TFlowBufCli(
@@ -429,8 +430,12 @@ int TFlowRTPVStreamer::onConfig()
                 std::bind(&TFlowRTPVStreamer::onSrcGone,  this, std::placeholders::_1),                          // TFlowBufCli::app_onSrcGone()
                 nullptr,
                 nullptr);
-            restart_required = 1;
         }
+
+        // In case of input source changed, other configuration doesn't matter
+        // as it was applyed on SrcReady
+        return 0;
+
     } // End of SRC changed
 
     // Apply WebSocket streamer configuration here
@@ -439,11 +444,9 @@ int TFlowRTPVStreamer::onConfig()
         int rc = encoder->onConfig();
         if (rc == -1) {
             // New configuration can be applied through full restart only
-            restart_required = 1;
+            restart();
         }
     }
-
-    if (restart_required) restart();
 
     return 0;
 
@@ -481,6 +484,12 @@ TFlowRTPVStreamer::TFlowRTPVStreamer(
     encoder = nullptr;
     buf_cli_in_stream = nullptr;
 
+    last_conn_check_ts.tv_nsec = 0;
+    last_conn_check_ts.tv_sec = -999;
+
+    last_send_ts.tv_nsec = 0;
+    last_send_ts.tv_sec = -999;
+
     cfg = rtp_streamer_cfg;
     last_idle_check = 0;
     addr_nok = 1;
@@ -491,9 +500,10 @@ void TFlowRTPVStreamer::stop()
     if (encoder) {
         delete encoder;
         encoder = nullptr;
+        memset(&in_frame_info, 0, sizeof(in_frame_info));
     }
-
 }
+
 void TFlowRTPVStreamer::restart() 
 {
     TFlowEncCfg::cfg_v4l2_enc *v4l2_enc_cfg = 
@@ -522,9 +532,6 @@ void TFlowRTPVStreamer::restart()
 TFlowRTPVStreamer::~TFlowRTPVStreamer()
 {
     CloseUDP();
-
-    if (encoder) {
-        delete encoder;
-        encoder = nullptr;
-    }
+    
+    stop();
 }

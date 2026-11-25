@@ -105,6 +105,7 @@ void TFlowRTSPVStreamer::need_data()
 
     in_buffer = gst_buffer_new_memdup(in_data_copy, frame_size);
 
+    // ??? Time stamp not needed as we using "do-timestamp=true" for appsrc
     GST_BUFFER_PTS(in_buffer) = buff_timestamp;
     GST_BUFFER_DURATION(in_buffer) = buff_duration;
     buff_timestamp += GST_BUFFER_DURATION(in_buffer);
@@ -137,7 +138,6 @@ void TFlowRTSPVStreamer::s_media_configure(GstRTSPMediaFactory* _factory,
 {
     TFlowRTSPVStreamer* tflow_rtsp = (TFlowRTSPVStreamer*)user_data;
     assert(tflow_rtsp->factory == _factory);
-
     tflow_rtsp->media_configure(media);
 }
 
@@ -157,12 +157,26 @@ void TFlowRTSPVStreamer::media_configure(GstRTSPMedia* media)
     /* this instructs appsrc that we will be dealing with timed buffer */
     gst_util_set_object_arg(G_OBJECT(appsrc), "format", "time");
 
+    const char *gst_fmt_string;
+    switch (in_frame_info.format) {
+    case V4L2_PIX_FMT_ABGR32:
+        gst_fmt_string = "BGRA";
+        break;
+    case V4L2_PIX_FMT_NV12:
+        gst_fmt_string = "NV12";
+        break;
+    case V4L2_PIX_FMT_GREY:
+        // See RTP Streamer for GREY handling
+    default:
+        assert(0);
+    }
+
     /* configure the caps of the video */
-    g_object_set(G_OBJECT(appsrc), "caps",
+    g_object_set(G_OBJECT(appsrc), "caps",                  
         gst_caps_new_simple("video/x-raw",
             "format", G_TYPE_STRING, "BGRA",    // BGRA is a native format for TFlowProcess. Other (NV12) not efficient for OpenCV rendering
-            "width", G_TYPE_INT, width,
-            "height", G_TYPE_INT, height,
+            "width", G_TYPE_INT, in_frame_info.width,
+            "height", G_TYPE_INT, in_frame_info.height,
             "framerate", GST_TYPE_FRACTION, 0, 1, NULL), NULL);
 
     /* install the callback that will be called when a buffer is needed */
@@ -209,12 +223,12 @@ int TFlowRTSPVStreamer::restart()
     char gst_pipeline_str[512] = { 0 };
     if (cfg->enc_type.v.num == TFlowRTSPStreamerUI::ENC_TYPE_H265) {
         snprintf(gst_pipeline_str, sizeof(gst_pipeline_str) - 1,
-            "( appsrc name=vstreamer %s ! vpuenc_hevc ! rtph265pay name=pay0 pt=96 )",
+            "( appsrc name=vstreamer  is-live=true %s ! vpuenc_hevc ! rtph265pay name=pay0 pt=96 )",
             gst_crop_str);
     }
     else {
         snprintf(gst_pipeline_str, sizeof(gst_pipeline_str) - 1,
-            "( appsrc name=vstreamer %s ! vpuenc_h264 ! rtph264pay name=pay0 pt=96 )",
+            "( appsrc name=vstreamer is-live=true %s ! vpuenc_h264 ! rtph264pay name=pay0 pt=96 )",
             gst_crop_str);
     }
     gst_rtsp_media_factory_set_launch(factory, gst_pipeline_str);
@@ -272,7 +286,7 @@ void TFlowRTSPVStreamer::onFrame(int src_id, const TFlowBuf &buf_in)
 
     // Note: as soon as rtsp server running in same mainloop it is safe
     //       to change the input buffer without MT protection
-    memcpy(in_data_copy, buf_in.start, buf_in.length);
+        memcpy(in_data_copy, buf_in.start, buf_in.length);
 }
 
 TFlowRTSPVStreamer::TFlowRTSPVStreamer(const TFlowRTSPStreamerCfg::cfg_rtsp_streamer *rtsp_streamer_cfg)
@@ -326,8 +340,6 @@ void TFlowRTSPVStreamer::onConfigValidate(json11::Json::object& j_out_params,
 
 int TFlowRTSPVStreamer::onConfig()
 {
-    int restart_required = 0;
-
     if (cfg->src.flags & TFlowCtrl::FIELD_FLAG::CHANGED) {
 
         stop();
@@ -343,7 +355,7 @@ int TFlowRTSPVStreamer::onConfig()
         const char* srv_name =
             (src == TFlowRTSPStreamerUI::VIDEO_SRC_CAM0) ? "com.reedl.tflow.capture0.buf-server" :
             (src == TFlowRTSPStreamerUI::VIDEO_SRC_CAM1) ? "com.reedl.tflow.capture1.buf-server" :
-            (src == TFlowRTSPStreamerUI::VIDEO_SRC_PROC) ? "com.reedl.tflow.process.buf-server" : "";
+            (src == TFlowRTSPStreamerUI::VIDEO_SRC_PROC) ? "com.reedl.tflow.process.buf-server"  : nullptr;
 
         if (srv_name) {
             buf_cli_in_stream = new TFlowBufCli(
@@ -353,20 +365,21 @@ int TFlowRTSPVStreamer::onConfig()
                 std::bind(&TFlowRTSPVStreamer::onSrcGone,  this, std::placeholders::_1),                          // TFlowBufCli::app_onSrcGone()
                 nullptr,
                 nullptr);
-
-            restart_required = 1;
         }
+
+        // In case of input source changed, other configuration doesn't matter
+        // as it was applyed on SrcReady
+        return 0;
+
     } // End of SRC changed
 
     if (cfg->fps.flags      & TFlowCtrl::FIELD_FLAG::CHANGED ||
         cfg->enc_type.flags & TFlowCtrl::FIELD_FLAG::CHANGED ||
         cfg->crop_en.flags  & TFlowCtrl::FIELD_FLAG::CHANGED) {
 
-        restart_required = 1;
+        restart();
     }
      
-    if (restart_required) restart();
-
     return 0;
 }
 

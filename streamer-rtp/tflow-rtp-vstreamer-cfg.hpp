@@ -78,7 +78,7 @@ public:
         TFlowCtrl::tflow_cmd_field_t   eomsg;
     } cmd_flds_cfg_rtp_streamer = {
         TFLOW_CMD_HEAD("RTP Streamer"),
-        .src             = { "rtp_src",         TFlowCtrl::CFT_NUM, 0, {.num = VIDEO_SRC_PROC }, &ui_rtp_video_src },
+        .src             = { "rtp_src",         TFlowCtrl::CFT_NUM, 0, {.num = VIDEO_SRC_DIS }, &ui_rtp_video_src },
         .udp_local_addr  = { "rtp_local_addr",  TFlowCtrl::CFT_STR, 0, {.str = strdup("0.0.0.0:21040")}, &ui_edit_local_addr},
         .udp_remote_addr = { "rtp_remote_addr", TFlowCtrl::CFT_STR, 0, {.str = strdup("192.168.2.10:21040")}, &ui_edit_remote_addr},
         .v4l2_enc        = { "rtp_v4l2_enc",    TFlowCtrl::CFT_REF, 0, {.ref = &cmd_flds_cfg_v4l2_enc.head}, &ui_group_def},

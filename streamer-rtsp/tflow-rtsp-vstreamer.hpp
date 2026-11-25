@@ -36,8 +36,8 @@ private:
     const TFlowRTSPStreamerCfg::cfg_rtsp_streamer *cfg;
 
     struct frame_info in_frame_info;   // Streamer's input frame format may differs from the
-    // Encoder's input format. Format conversion will be
-    // performed on data buffer copy (see fillBuffer()).
+                                       // Encoder's input format. Format conversion will be
+                                       // performed on data buffer copy (see fillBuffer()).
 
     // Input stream client (TFlowBufCli) and its callbacks
     TFlowBufCli* buf_cli_in_stream;
@@ -46,17 +46,14 @@ private:
     void onSrcGone(int src_id);
 
 
-    int width;
-    int height;
+    //int width;
+    //int height;
     long frame_size;
 
     GstBuffer* in_buffer;
     uint8_t *in_data_copy;
 
     clock_t last_idle_check;
-
-    struct timespec last_send_ts;
-    struct timespec last_conn_check_ts;
 
     void need_data();
     void media_configure(GstRTSPMedia* media);

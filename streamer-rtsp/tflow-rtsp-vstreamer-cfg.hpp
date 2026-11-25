@@ -89,7 +89,7 @@ public:
         TFlowCtrl::tflow_cmd_field_t   eomsg;
     } cmd_flds_cfg_rtsp_streamer = {
         TFLOW_CMD_HEAD("RTSP Streamer"),
-        .src        = { "rtsp_src",    CFT_NUM,  0, {.num   = VIDEO_SRC_PROC }, &ui_rtsp_video_src },
+        .src        = { "rtsp_src",    CFT_NUM,  0, {.num   = VIDEO_SRC_DIS  }, &ui_rtsp_video_src },
         .enc_type   = { "enc_type",    CFT_NUM,  0, { .num  = ENC_TYPE_H264  }, &ui_encoder_type },
         .port       = { "port",        CFT_NUM,  0, { .num  = 30554          }, &ui_edit_def},
         .mount_name = { "mount_name",  CFT_STR,  0, { .str  = strdup("my_str_name") }, &ui_edit_def},
